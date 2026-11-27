@@ -2,9 +2,14 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Финансы</title>
+<script>
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com' + 'html5-qrcode@2.3.8/' + 'html5-qrcode.min.js';
+  document.head.appendChild(s);
+</script>
 <style>
   :root { --bg:#F2F2F7; --card:#FFF; --text:#1C1C1E; --muted:#8E8E93; --blue:#007AFF; --green:#34C759; --red:#FF3B30; --orange:#FF9500; --border:#E5E5EA; }
   * { box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
@@ -13,19 +18,19 @@
   header h1 { margin:0; font-size:20px; }
   .badge-m { background:#E5F1FF; color:var(--blue); padding:4px 10px; border-radius:12px; font-size:13px; font-weight:600; }
   .box { padding:14px 16px; max-width:600px; margin:0 auto; }
-  .tab { display:none; } .tab.active { display:block; }
+  .tab { display:none; }
+  .tab.active { display:block; }
   .banner { border-radius:14px; padding:12px 14px; margin-bottom:12px; font-size:13px; line-height:1.4; }
-  .b-err { background:#FFEBEE; color:#B71C1C; border:1px solid #FFCDD2; }
   .b-wrn { background:#FFF3E0; color:#E65100; border:1px solid #FFE0B2; }
   .b-inf { background:#E5F1FF; color:#004085; border:1px solid #B8DAFF; }
-  .b-ok { background:#E3F9E8; color:#1B5E20; border:1px solid #C8E6C9; }
   .card { background:var(--card); border-radius:14px; padding:14px 16px; margin-bottom:12px; }
   .ctitle { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:10px; }
   .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
   .row { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
   .row:last-child { border-bottom:none; }
   .tag { display:inline-block; padding:3px 8px; border-radius:8px; font-size:11px; font-weight:600; margin-top:3px; }
-  .t-g { background:#E3F9E8; color:#1E8E3E; } .t-o { background:#FFF3E0; color:#E65100; } .t-r { background:#FFEBEE; color:#D32F2F; } .t-b { background:#E5F1FF; color:var(--blue); }
+  .t-r { background:#FFEBEE; color:#D32F2F; }
+  .t-b { background:#E5F1FF; color:var(--blue); }
   .pbar { background:#E5E5EA; height:7px; border-radius:4px; overflow:hidden; margin-top:8px; }
   .pfill { background:var(--green); height:100%; }
   label { display:block; font-size:13px; font-weight:600; color:var(--muted); margin:10px 0 4px; }
@@ -41,7 +46,7 @@
 </style>
 </head>
 <body>
-<header><h1 id="pTitle">Календарь</h1><span class="badge-m" id="mBadge">Ноябрь 2026</span></header>
+<header><h1 id="pTitle">Календарь</h1><span class="badge-m">Ноябрь 2026</span></header>
 <div class="box">
   <div id="tab-cal" class="tab active">
     <div id="remBanner"></div>
@@ -54,7 +59,10 @@
     <div class="card"><div class="ctitle">3. Кредиты и досрочка</div><div id="crdList"></div></div>
   </div>
   <div id="tab-ops" class="tab"><div class="card"><div class="ctitle">Операции за месяц</div><div id="opsList"></div></div></div>
-  <div id="tab-crd" class="tab"><div class="card"><div class="ctitle">График погашения общего долга (Лавина)</div><div id="debtChart"></div></div><div id="crdDet"></div></div>
+  <div id="tab-crd" class="tab">
+    <div class="card"><div class="ctitle">График погашения общего долга (Лавина)</div><div id="debtChart"></div></div>
+    <div id="crdDet"></div>
+  </div>
   <div id="tab-sum" class="tab">
     <div class="card"><div class="ctitle">Структура расходов за месяц</div><div id="expChart"></div></div>
     <div class="card"><div class="ctitle">Сводка по категориям</div><div id="catSum"></div></div>
@@ -77,7 +85,12 @@
 </nav>
 
 <div class="modal" id="opMod"><div class="sheet">
-  <div style="display:flex;justify-content:space-between;"><b>Новая операция</b><button type="button" onclick="closeOp()">✕</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <b id="opModTitle" style="font-size:17px;">Новая операция</b>
+    <button type="button" onclick="closeOp()">X</button>
+  </div>
+  <button type="button" class="btn" style="background:#34C759;margin-top:0;margin-bottom:8px;" onclick="startScan()">📷 Сканировать QR-код чека</button>
+  <div id="qrBox" style="display:none;margin-bottom:10px;border-radius:12px;overflow:hidden;"></div>
   <label>Тип</label>
   <select id="oType" onchange="updForm()">
     <option value="Расход">Расход</option>
@@ -123,7 +136,7 @@
 </div></div>
 
 <div class="modal" id="remMod"><div class="sheet">
-  <div style="display:flex;justify-content:space-between;"><b>Напоминания</b><button type="button" onclick="closeRem()">✕</button></div>
+  <div style="display:flex;justify-content:space-between;"><b>Напоминания</b><button type="button" onclick="closeRem()">X</button></div>
   <div class="grid2">
     <div><label>День досрочки</label><input type="number" id="rExD"></div>
     <div><label>Время</label><input type="time" id="rTim"></div>
@@ -134,18 +147,20 @@
   <button type="button" class="btn" style="background:var(--blue);" onclick="saveRem()">Сохранить</button>
 </div></div>
 <script>
-var INIT_C = [
+var INIT_C = Array.of(
   { id:'c1', name:'Сбербанк (29.06.2026)', rate:30.5, day:29, pay:718.36, debt:11123 },
   { id:'c2', name:'СБЕРБАНК (11.11.2026)', rate:29.887, day:11, pay:3229.20, debt:50000 },
   { id:'c3', name:'Сбербанк (05.03.2026)', rate:28.9, day:5, pay:7618.90, debt:235108 },
   { id:'c4', name:'СБЕРБАНК (06.06.2026)', rate:25.4, day:6, pay:4881.74, debt:157858 },
   { id:'c5', name:'ПСБ_ипотека (20.01.2020)', rate:10.4, day:20, pay:817.45, debt:85429 }
-];
+);
 var INIT_P = { ali:20000, aliD:15, ben:15000, benD:3, k1:3000, k2:3000, k3:3000, ex:5000, exD:29, kW:0, tim:'10:00' };
-var st = JSON.parse(localStorage.getItem('fin_kids_ok')) || { c:INIT_C, p:INIT_P, ops:[] };
+var st = JSON.parse(localStorage.getItem('fin_kids_ok')) || { c:INIT_C, p:INIT_P, ops:Array.of() };
+var editId = null;
+var qrScanner = null;
 
 function save() { localStorage.setItem('fin_kids_ok', JSON.stringify(st)); draw(); }
-function f(n) { return Math.round(n * 100) / 100 + ' ₽'; }
+function f(n) { return (Math.round(n * 100) / 100) + ' ₽'; }
 
 function goTab(id, t, b) {
   document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
@@ -155,7 +170,41 @@ function goTab(id, t, b) {
   document.getElementById('pTitle').textContent = t;
 }
 
+function stopScan() {
+  var box = document.getElementById('qrBox');
+  if (qrScanner) {
+    qrScanner.stop().then(function(){
+      qrScanner.clear(); qrScanner = null; if (box) box.style.display = 'none';
+    }).catch(function(){ if (box) box.style.display = 'none'; });
+  } else if (box) { box.style.display = 'none'; }
+}
+
+function startScan() {
+  var box = document.getElementById('qrBox');
+  if (box.style.display === 'block') { stopScan(); return; }
+  if (typeof Html5Qrcode === 'undefined') return alert('Нужен интернет при открытии страницы для загрузки сканера.');
+  box.style.display = 'block';
+  qrScanner = new Html5Qrcode('qrBox');
+  qrScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 220, height: 220 } },
+    function(txt) {
+      var tm = txt.match(/t=(\d{4})(\d{2})(\d{2})/);
+      var sm = txt.match(/s=([\d.]+)/);
+      if (tm || sm) {
+        document.getElementById('oType').value = 'Расход';
+        updForm();
+        if (tm) document.getElementById('oDate').value = tm.at(1) + '-' + tm.at(2) + '-' + tm.at(3);
+        if (sm) document.getElementById('oAmt').value = sm.at(1);
+        stopScan();
+        alert('Чек считан! Выберите категорию и нажмите Сохранить.');
+      }
+    }
+  ).catch(function() { box.style.display = 'none'; alert('Нет доступа к камере. Проверьте разрешение для Safari.'); });
+}
+
 function openOp() {
+  editId = null;
+  var ttl = document.getElementById('opModTitle');
+  if (ttl) ttl.textContent = 'Новая операция';
   document.getElementById('oDate').value = new Date().toISOString().slice(0,10);
   document.getElementById('oAmt').value = '';
   document.getElementById('oPri').value = '';
@@ -164,7 +213,31 @@ function openOp() {
   updForm();
   document.getElementById('opMod').classList.add('open');
 }
-function closeOp() { document.getElementById('opMod').classList.remove('open'); }
+
+function editOp(id) {
+  var op = st.ops.find(function(x){ return String(x.id) === String(id); });
+  if (!op) return;
+  editId = String(id);
+  var ttl = document.getElementById('opModTitle');
+  if (ttl) ttl.textContent = 'Редактировать операцию';
+  var isC = (op.t === 'Кредитный платеж' || op.t === 'Досрочное погашение');
+  document.getElementById('oType').value = op.t;
+  document.getElementById('oDate').value = op.d;
+  if (isC) {
+    document.getElementById('oCrd').value = op.cid;
+    document.getElementById('oPri').value = op.pr;
+    document.getElementById('oInt').value = op.inr;
+  } else {
+    document.getElementById('oCat').value = op.cat;
+    document.getElementById('oAmt').value = op.a;
+    if (op.rec) document.getElementById('oKid').value = op.rec;
+  }
+  document.getElementById('oNot').value = op.n || '';
+  updForm();
+  document.getElementById('opMod').classList.add('open');
+}
+
+function closeOp() { stopScan(); editId = null; document.getElementById('opMod').classList.remove('open'); }
 
 function updForm() {
   var t = document.getElementById('oType').value;
@@ -182,25 +255,30 @@ function saveOp() {
   var d = document.getElementById('oDate').value;
   var n = document.getElementById('oNot').value;
   if (!d) return alert('Укажите дату');
+  var obj = null;
   if (t === 'Кредитный платеж' || t === 'Досрочное погашение') {
     var cid = document.getElementById('oCrd').value;
     var co = st.c.find(function(x){ return x.id === cid; });
     var pr = Number(document.getElementById('oPri').value || 0);
     var inr = Number(document.getElementById('oInt').value || 0);
     if (pr + inr <= 0) return alert('Введите сумму');
-    st.ops.push({ id:String(Date.now()), d:d, t:t, cid:cid, cn:co.name, a:pr+inr, pr:pr, inr:inr, n:n });
+    obj = { id:editId || String(Date.now()), d:d, t:t, cid:cid, cn:co.name, a:pr+inr, pr:pr, inr:inr, n:n };
   } else {
     var cat = document.getElementById('oCat').value;
     var a = Number(document.getElementById('oAmt').value || 0);
     var rec = (cat === 'Дети: проезд и карманные') ? document.getElementById('oKid').value : '';
-    var rt = (['Зарплата','Алименты','Детские пособия'].indexOf(cat) >= 0) ? 'Доход' : 'Расход';
+    var rt = (Array.of('Зарплата','Алименты','Детские пособия').indexOf(cat) >= 0) ? 'Доход' : 'Расход';
     if (a <= 0) return alert('Введите сумму');
-    st.ops.push({ id:String(Date.now()), d:d, t:rt, cat:cat, rec:rec, a:a, pr:0, inr:0, n:n });
+    obj = { id:editId || String(Date.now()), d:d, t:rt, cat:cat, rec:rec, a:a, pr:0, inr:0, n:n };
   }
+  if (editId) {
+    var idx = st.ops.findIndex(function(x){ return String(x.id) === String(editId); });
+    if (idx !== -1) st.ops.splice(idx, 1, obj);
+  } else { st.ops.push(obj); }
   save(); closeOp();
 }
 
-function delOp(id) { if (confirm('Удалить?')) { st.ops = st.ops.filter(function(x){ return x.id !== id; }); save(); } }
+function delOp(id) { if (confirm('Удалить?')) { st.ops = st.ops.filter(function(x){ return String(x.id) !== String(id); }); save(); } }
 
 function openRem() {
   document.getElementById('rExD').value = st.p.exD;
@@ -228,85 +306,6 @@ function editPlans() {
   st.p.ali = Number(a) || 0; st.p.ben = Number(b) || 0; save();
 }
 
-function dlICS() {
-  var nl = String.fromCharCode(10);
-  var now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
-  var ts = st.p.tim.replace(':','') + '00';
-  var txt = 'BEGIN:VCALENDAR' + nl + 'VERSION:2.0' + nl;
-  st.c.forEach(function(x){
-    txt += 'BEGIN:VEVENT' + nl + 'DTSTART:' + y + m + String(x.day).padStart(2,'0') + 'T' + ts + nl + 'RRULE:FREQ=MONTHLY;BYMONTHDAY=' + x.day + nl + 'SUMMARY:Кредит ' + x.name + nl + 'END:VEVENT' + nl;
-  });
-  txt += 'END:VCALENDAR';
-  var el = document.createElement('a');
-  el.href = URL.createObjectURL(new Blob([txt], {type:'text/calendar'}));
-  el.download = 'reminders.ics'; el.click();
-}
-
-function dlCSV() {
-  var nl = String.fromCharCode(10);
-  var txt = 'Дата;Тип;Категория;Получатель;Сумма;Долг;Проценты;Комментарий' + nl;
-  st.ops.forEach(function(x){ txt += [x.d, x.t, x.cat||x.cn, x.rec||'', x.a, x.pr, x.inr, x.n||''].join(';') + nl; });
-  var el = document.createElement('a');
-  el.href = URL.createObjectURL(new Blob([txt], {type:'text/csv;charset=utf-8'}));
-  el.download = 'finance.csv'; el.click();
-}
-
-function resetAll() { if (confirm('Сбросить все данные?')) { localStorage.removeItem('fin_kids_ok'); location.reload(); } }
-
-function draw() {
-  var now = new Date(), cm = now.toISOString().slice(0,7), td = now.getDate();
-  var mOps = st.ops.filter(function(x){ return x.d.startsWith(cm); });
-  var tot = 0, urg = [];
-  var list = st.c.map(function(x){
-    var pp = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.pr; }, 0);
-    var pi = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.inr; }, 0);
-    var rem = Math.max(0, x.debt - pp); tot += rem;
-    var pm = mOps.filter(function(o){ return o.cid === x.id && o.t === 'Кредитный платеж'; }).reduce(function(s,o){ return s + o.a; }, 0);
-    if (rem > 0 && pm < x.pay - 1 && x.day - td >= 0 && x.day - td <= 3) urg.push(x.name + ' (' + x.day + '-го: ' + f(x.pay) + ')');
-    return { id:x.id, name:x.name, rate:x.rate, day:x.day, pay:x.pay, debt:x.debt, pp:pp, pi:pi, rem:rem, pm:pm };
-  }).sort(function(a,b){ return b.rate - a.rate; });
-
-  document.getElementById('remBanner').innerHTML = urg.length ? '<div class="banner b-wrn">⏰ <b>Скоро платеж:</b> ' + urg.join(', ') + '</div>' : '<div class="banner b-inf">🔔 Все ближайшие платежи под контролем</div>';
-  document.getElementById('totDebt').textContent = f(tot);
-  var inc = mOps.filter(function(x){ return x.t === 'Доход'; }).reduce(function(s,x){ return s + x.a; }, 0);
-  var out = mOps.filter(function(x){ return x.t !== 'Доход'; }).reduce(function(s,x){ return s + x.a; }, 0);
-  document.getElementById('mBal').textContent = f(inc - out);
-
-  var bf = mOps.filter(function(x){ return x.cat === 'Детские пособия'; }).reduce(function(s,x){ return s + x.a; }, 0);
-  var af = mOps.filter(function(x){ return x.cat === 'Алименты'; }).reduce(function(s,x){ return s + x.a; }, 0);
-  document.getElementById('incList').innerHTML = '<div class="row"><div><b>Детские пособия</b><br><small>' + st.p.benD + '-го • План ' + f(st.p.ben) + '</small></div><div><b>' + f(bf) + '</b></div></div><div class="row"><div><b>Алименты</b><br><small>' + st.p.aliD + '-го • План ' + f(st.p.ali) + '</small></div><div><b>' + f(af) + '</b></div></div>';
-
-  var ks = [{n:'Ярослав',p:st.p.k1},{n:'Кирилл',p:st.p.k2},{n:'Ростислав',p:st.p.k3}];
-  document.getElementById('kidList').innerHTML = ks.map(function(k){
-    var kf = mOps.filter(function(x){ return x.rec === k.n; }).reduce(function(s,x){ return s + x.a; }, 0);
-    var wk = Math.min(4, Math.floor(kf / (k.p / 4 || 1)));
-    return '<div class="row"><div><b>' + k.n + '</b><br><small>План ' + f(k.p) + ' • ' + wk + ' из 4 нед.</small></div><div><b>' + f(kf) + '</b></div></div>';
-  }).join('');
-
-  var exF = mOps.filter(function(x){ return x.t === 'Досрочное погашение'; }).reduce(function(s,x){ return s + x.a; }, 0);
-  document.getElementById('crdList').innerHTML = list.map(function(x){
-    return '<div class="row"><div><b>' + x.name + '</b><br><small>' + x.day + '-го • План ' + f(x.pay) + '</small></div><div><b>' + f(x.pm) + '</b></div></div>';
-  }).join('') + '<div class="row"><div><b>Досрочное погашение</b><br><small>' + st.p.exD + '-го • План ' + f(st.p.ex) + '</small></div><div><b>' + f(exF) + '</b></div></div>';
-
-    document.getElementById('crdDet').innerHTML = list.map(function(x, idx){
-    var pct = Math.min(100, Math.round((x.pp / x.debt) * 100));
-    var btnI = '<button type="button" data-cid="' + x.id + '" onclick="openInfo(this.dataset.cid)" style="background:#007AFF;color:#FFF;border:none;width:24px;height:24px;border-radius:12px;font-weight:bold;margin-left:6px;cursor:pointer;">i</button>';
-    return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;"><div><b>' + x.name + '</b>' + btnI + '</div><span class="tag ' + (idx===0?'t-r':'t-b') + '">' + (idx===0?'ЦЕЛЬ №1':'#'+(idx+1)) + '</span></div><small>Ставка ' + x.rate + '% • Платеж ' + f(x.pay) + ' (' + x.day + '-го числа)</small><div style="margin-top:8px;">Остаток: <b>' + f(x.rem) + '</b> | Проценты: ' + f(x.pi) + '</div><div class="pbar"><div class="pfill" style="width:' + pct + '%"></div></div></div>';
-  }).join('');
-      var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
-  document.getElementById('opsList').innerHTML = mOps.slice().sort(function(a, b){ return a.d.localeCompare(b.d); }).map(function(x){
-    var dp = x.d.split('-');
-    var ruDate = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : x.d;
-    return '<div class="row"><div><b>' + (x.cat || x.t) + '</b><br><small>' + ruDate + ' • ' + (x.rec||x.cn||'') + ' ' + (x.n||'') + '</small></div><div><b>' + f(x.a) + '</b> <button type="button" data-id="' + x.id + '" onclick="delOp(this.dataset.id)">X</button></div></div>';
-  }).join('') || '<small>Нет операций</small>';
-
-  var cats = ['Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы'];
-  document.getElementById('catSum').innerHTML = cats.map(function(c){
-    var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
-    return '<div class="row"><span>' + c + '</span><b>' + f(s) + '</b></div>';
-  }).join('');
-  document.getElementById('oCrd').innerHTML = st.c.map(function(x){ return '<option value="' + x.id + '">' + x.name + '</option>'; }).join('');
-}
 function openInfo(cid) {
   var c = st.c.find(function(x){ return x.id === cid; });
   if (!c) return;
@@ -314,33 +313,18 @@ function openInfo(cid) {
     var pp = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.pr; }, 0);
     return { id:x.id, rate:x.rate, rem:Math.max(0, x.debt - pp) };
   }).filter(function(x){ return x.rem > 0; }).sort(function(a,b){ return b.rate - a.rate; });
-
   var isTop = (activeList.length > 0 && activeList.at(0).id === cid);
   var paidP = st.ops.filter(function(o){ return o.cid === cid; }).reduce(function(s,o){ return s + o.pr; }, 0);
   var paidI = st.ops.filter(function(o){ return o.cid === cid; }).reduce(function(s,o){ return s + o.inr; }, 0);
   var rem = Math.max(0, c.debt - paidP);
-
   document.getElementById('infTitle').textContent = c.name;
-
   var html = '<div style="background:#F2F2F7;padding:12px;border-radius:12px;font-size:13px;line-height:1.6;margin-bottom:12px;">';
-  html += '<div><b>Ставка:</b> ' + c.rate + '% годовых</div>';
-  html += '<div><b>Дата списания:</b> ' + c.day + '-е число каждого месяца</div>';
-  html += '<div><b>Обязательный платеж:</b> ' + f(c.pay) + '</div>';
-  html += '<div><b>Стартовый долг:</b> ' + f(c.debt) + '</div>';
+  html += '<div><b>Ставка:</b> ' + c.rate + '% • <b>Платеж:</b> ' + f(c.pay) + ' (' + c.day + '-го)</div>';
   html += '<div><b>Остаток долга:</b> <span style="color:#FF3B30;font-weight:700;">' + f(rem) + '</span></div>';
-  html += '<div><b>Уже погашено тела / %:</b> ' + f(paidP) + ' / ' + f(paidI) + '</div>';
-  if (isTop) html += '<div style="color:#1E8E3E;font-weight:600;margin-top:4px;">🔥 Активна досрочка +' + f(st.p.ex) + '/мес (Цель №1)</div>';
-  html += '</div>';
-
-  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;text-transform:uppercase;margin-bottom:8px;">Прогнозный график платежей</div>';
-  html += '<div style="max-height:260px;overflow-y:auto;border:1px solid #E5E5EA;border-radius:10px;padding:0 10px;">';
-
-  var simDebt = rem;
-  var mRate = (c.rate / 100) / 12;
-  var months = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек');
-  var now = new Date();
-  var step = 0;
-
+  html += '<div><b>Погашено тела / %:</b> ' + f(paidP) + ' / ' + f(paidI) + '</div></div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin-bottom:6px;">ПРОГНОЗНЫЙ ГРАФИК ПЛАТЕЖЕЙ</div>';
+  html += '<div style="max-height:220px;overflow-y:auto;border:1px solid #E5E5EA;border-radius:10px;padding:0 10px;">';
+  var simDebt = rem, mRate = (c.rate / 100) / 12, months = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'), now = new Date(), step = 0;
   if (simDebt <= 0) {
     html += '<div style="padding:12px 0;color:#1E8E3E;font-weight:600;">Кредит полностью закрыт!</div>';
   } else {
@@ -348,98 +332,149 @@ function openInfo(cid) {
       step++;
       var dObj = new Date(now.getFullYear(), now.getMonth() + step, 1);
       var mLabel = months.at(dObj.getMonth()) + ' ' + dObj.getFullYear();
-      var intr = simDebt * mRate;
-      var extra = isTop ? st.p.ex : 0;
-      var totalPay = c.pay + extra;
-      var bodyPay = totalPay - intr;
-      if (bodyPay > simDebt) {
-        bodyPay = simDebt;
-        totalPay = bodyPay + intr;
-      }
+      var intr = simDebt * mRate, extra = isTop ? st.p.ex : 0, totalPay = c.pay + extra, bodyPay = totalPay - intr;
+      if (bodyPay > simDebt) { bodyPay = simDebt; totalPay = bodyPay + intr; }
       simDebt = Math.max(0, simDebt - bodyPay);
-      html += '<div class="row" style="font-size:12px;">';
-      html += '<div><b>' + mLabel + '</b> (' + c.day + '-го)<br><small style="color:#8E8E93;">Долг: ' + f(bodyPay) + ' • %: ' + f(intr) + '</small></div>';
-      html += '<div style="text-align:right;"><b>' + f(totalPay) + '</b><br><small style="color:#8E8E93;">Ост: ' + f(simDebt) + '</small></div>';
-      html += '</div>';
-    }
-  }
-  html += '</div>';
-
-    var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
-  var hist = st.ops.filter(function(o){ return o.cid === cid; }).slice().sort(function(a, b){ return a.d.localeCompare(b.d); });
-  if (hist.length > 0) {
-    html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;text-transform:uppercase;margin:12px 0 6px;">Фактические платежи</div>';
-    html += hist.map(function(h){
-      var dp = h.d.split('-');
-      var ruDate = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : h.d;
-      return '<div class="row" style="font-size:12px;"><div><b>' + ruDate + '</b> (' + h.t + ')</div><div><b>' + f(h.a) + '</b></div></div>';
-    }).join('');
-  }
-
-  document.getElementById('infBody').innerHTML = html;
-  document.getElementById('infoMod').classList.add('open');
+html += '' + mLabel + ' (' + c.day + '-го)
+Долг: ' + f(bodyPay) + ' • %: ' + f(intr) + '' + f(totalPay) + '
+Ост: ' + f(simDebt) + '';
 }
-
-function closeInfo() {
-  document.getElementById('infoMod').classList.remove('open');
-  var colors = Array.of('#007AFF','#34C759','#FF9500','#FF3B30','#AF52DE','#5856D6','#FF2D55','#00C7BE','#A2845E','#8E8E93');
-  var expItems = Array.of();
-  cats.forEach(function(c) {
-    if (c === 'Зарплата' || c === 'Алименты' || c === 'Детские пособия') return;
-    var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
-    if (s > 0) expItems.push({ name:c, val:s });
-  });
-  var crdMonth = mOps.filter(function(x){ return x.t === 'Кредитный платеж' || x.t === 'Досрочное погашение'; }).reduce(function(a,b){ return a + b.a; }, 0);
-  if (crdMonth > 0) expItems.push({ name:'Кредиты и досрочка', val:crdMonth });
-  expItems.sort(function(a,b){ return b.val - a.val; });
-
-  var totExp = expItems.reduce(function(a,b){ return a + b.val; }, 0);
-  if (totExp === 0) {
-    document.getElementById('expChart').innerHTML = '<small style="color:#8E8E93;">Добавьте первый расход или платеж по кредиту, чтобы увидеть диаграмму.</small>';
-  } else {
-    document.getElementById('expChart').innerHTML = expItems.map(function(item, i) {
-      var pct = Math.round((item.val / totExp) * 100);
-      var col = colors.at(i % colors.length);
-      return '<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><span>' + item.name + '</span><b>' + f(item.val) + ' (' + pct + '%)</b></div><div style="background:#E5E5EA;height:8px;border-radius:4px;overflow:hidden;"><div style="background:' + col + ';width:' + pct + '%;height:100%;"></div></div></div>';
-    }).join('');
-  }
-  var simList = list.map(function(x){ return { rate:x.rate, pay:x.pay, rem:x.rem }; });
-  var mNames = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек');
-  var pts = Array.of({ label:'Сейчас', val:tot });
-  var stepM = 0;
-  while (stepM < 42) {
-    stepM++;
-    var activeSim = simList.filter(function(s){ return s.rem > 0.1; }).sort(function(a,b){ return b.rate - a.rate; });
-    if (activeSim.length === 0) break;
-    var extraPool = st.p.ex;
-    simList.forEach(function(s) {
-      if (s.rem <= 0) { extraPool += s.pay; return; }
-      var intr = s.rem * (s.rate / 100 / 12);
-      var body = Math.max(0, s.pay - intr);
-      if (body > s.rem) { extraPool += (body - s.rem); body = s.rem; }
-      s.rem = Math.max(0, s.rem - body);
-    });
-    activeSim.forEach(function(s) {
-      if (extraPool <= 0 || s.rem <= 0) return;
-      var take = Math.min(s.rem, extraPool);
-      s.rem = Math.max(0, s.rem - take);
-      extraPool -= take;
-    });
-    var remSum = simList.reduce(function(a,b){ return a + b.rem; }, 0);
-    if (stepM % 6 === 0 || remSum <= 0.5) {
-      var fd = new Date(now.getFullYear(), now.getMonth() + stepM, 1);
-      pts.push({ label:mNames.at(fd.getMonth()) + ' ' + String(fd.getFullYear()).slice(2), val:Math.round(remSum) });
-      if (remSum <= 0.5) break;
-    }
-  }
-  var maxD = Math.max(1, tot);
-  document.getElementById('debtChart').innerHTML = '<div style="display:flex;align-items:flex-end;justify-content:space-between;height:130px;padding-top:20px;gap:6px;">' +
-    pts.map(function(pt) {
-      var h = Math.max(6, Math.round((pt.val / maxD) * 95));
-      var kVal = pt.val >= 1000 ? Math.round(pt.val / 1000) + 'к' : pt.val + '₽';
-      var barCol = pt.val === 0 ? '#34C759' : '#007AFF';
-      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;"><div style="font-size:10px;font-weight:700;margin-bottom:4px;color:#1C1C1E;">' + kVal + '</div><div style="width:100%;max-width:34px;height:' + h + 'px;background:' + barCol + ';border-radius:6px 6px 2px 2px;"></div><div style="font-size:10px;color:#8E8E93;margin-top:5px;">' + pt.label + '</div></div>';
-    }).join('') + '</div>';
+}
+html += '';
+var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
+var hist = st.ops.filter(function(o){ return o.cid === cid; }).slice().sort(function(a, b){ return a.d.localeCompare(b.d); });
+if (hist.length > 0) {
+html += 'ФАКТИЧЕСКИЕ ПЛАТЕЖИ';
+html += hist.map(function(h){
+var dp = h.d.split('-');
+var rd = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : h.d;
+return '' + rd + ' (' + h.t + ')' + f(h.a) + '';
+}).join('');
+}
+document.getElementById('infBody').innerHTML = html;
+document.getElementById('infoMod').classList.add('open');
+}
+function closeInfo() { document.getElementById('infoMod').classList.remove('open'); }
+function dlICS() {
+var nl = String.fromCharCode(10), now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+var ts = st.p.tim.replace(':','') + '00', txt = 'BEGIN:VCALENDAR' + nl + 'VERSION:2.0' + nl;
+st.c.forEach(function(x){
+txt += 'BEGIN:VEVENT' + nl + 'DTSTART:' + y + m + String(x.day).padStart(2,'0') + 'T' + ts + nl + 'RRULE:FREQ=MONTHLY;BYMONTHDAY=' + x.day + nl + 'SUMMARY:Кредит ' + x.name + nl + 'END:VEVENT' + nl;
+});
+txt += 'END:VCALENDAR';
+var el = document.createElement('a');
+el.href = URL.createObjectURL(new Blob(Array.of(txt), {type:'text/calendar'}));
+el.download = 'reminders.ics'; el.click();
+}
+function dlCSV() {
+var nl = String.fromCharCode(10), txt = 'Дата;Тип;Категория;Получатель;Сумма;Долг;Проценты;Комментарий' + nl;
+st.ops.forEach(function(x){ txt += Array.of(x.d, x.t, x.cat||x.cn, x.rec||'', x.a, x.pr, x.inr, x.n||'').join(';') + nl; });
+var el = document.createElement('a');
+el.href = URL.createObjectURL(new Blob(Array.of(txt), {type:'text/csv;charset=utf-8'}));
+el.download = 'finance.csv'; el.click();
+}
+function resetAll() { if (confirm('Сбросить все данные?')) { localStorage.removeItem('fin_kids_ok'); location.reload(); } }
+function draw() {
+var now = new Date(), cm = now.toISOString().slice(0,7), td = now.getDate();
+var mOps = st.ops.filter(function(x){ return x.d.startsWith(cm); });
+var tot = 0, urg = Array.of();
+var list = st.c.map(function(x){
+var pp = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.pr; }, 0);
+var pi = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.inr; }, 0);
+var rem = Math.max(0, x.debt - pp); tot += rem;
+var pm = mOps.filter(function(o){ return o.cid === x.id && o.t === 'Кредитный платеж'; }).reduce(function(s,o){ return s + o.a; }, 0);
+if (rem > 0 && pm < x.pay - 1 && x.day - td >= 0 && x.day - td <= 3) urg.push(x.name + ' (' + x.day + '-го: ' + f(x.pay) + ')');
+return { id:x.id, name:x.name, rate:x.rate, day:x.day, pay:x.pay, debt:x.debt, pp:pp, pi:pi, rem:rem, pm:pm };
+}).sort(function(a,b){ return b.rate - a.rate; });
+document.getElementById('remBanner').innerHTML = urg.length ? '⏰ Скоро платеж: ' + urg.join(', ') + '' : '🔔 Все ближайшие платежи под контролем';
+document.getElementById('totDebt').textContent = f(tot);
+var inc = mOps.filter(function(x){ return x.t === 'Доход'; }).reduce(function(s,x){ return s + x.a; }, 0);
+var out = mOps.filter(function(x){ return x.t !== 'Доход'; }).reduce(function(s,x){ return s + x.a; }, 0);
+document.getElementById('mBal').textContent = f(inc - out);
+var bf = mOps.filter(function(x){ return x.cat === 'Детские пособия'; }).reduce(function(s,x){ return s + x.a; }, 0);
+var af = mOps.filter(function(x){ return x.cat === 'Алименты'; }).reduce(function(s,x){ return s + x.a; }, 0);
+document.getElementById('incList').innerHTML = 'Детские пособия
+' + st.p.benD + '-го • План ' + f(st.p.ben) + '' + f(bf) + 'Алименты
+' + st.p.aliD + '-го • План ' + f(st.p.ali) + '' + f(af) + '';
+var ks = Array.of({n:'Ярослав',p:st.p.k1},{n:'Кирилл',p:st.p.k2},{n:'Ростислав',p:st.p.k3});
+document.getElementById('kidList').innerHTML = ks.map(function(k){
+var kf = mOps.filter(function(x){ return x.rec === k.n; }).reduce(function(s,x){ return s + x.a; }, 0);
+var wk = Math.min(4, Math.floor(kf / (k.p / 4 || 1)));
+return '' + k.n + '
+План ' + f(k.p) + ' • ' + wk + ' из 4 нед.' + f(kf) + '';
+}).join('');
+var exF = mOps.filter(function(x){ return x.t === 'Досрочное погашение'; }).reduce(function(s,x){ return s + x.a; }, 0);
+document.getElementById('crdList').innerHTML = list.map(function(x){
+return '' + x.name + '
+' + x.day + '-го • План ' + f(x.pay) + '' + f(x.pm) + '';
+}).join('') + 'Досрочное погашение
+' + st.p.exD + '-го • План ' + f(st.p.ex) + '' + f(exF) + '';
+document.getElementById('crdDet').innerHTML = list.map(function(x, idx){
+var pct = Math.min(100, Math.round((x.pp / x.debt) * 100));
+var btnI = 'i';
+return '' + x.name + '' + btnI + '' + (idx===0?'ЦЕЛЬ №1':'#'+(idx+1)) + 'Ставка ' + x.rate + '% • Платеж ' + f(x.pay) + 'Остаток: ' + f(x.rem) + ' | Проценты: ' + f(x.pi) + '';
+}).join('');
+var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
+document.getElementById('opsList').innerHTML = mOps.slice().sort(function(a, b){ return a.d.localeCompare(b.d); }).map(function(x){
+var dp = x.d.split('-');
+var ruDate = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : x.d;
+var btns = 'Изм. X';
+return '' + (x.cat || x.t) + '
+' + ruDate + ' • ' + (x.rec||x.cn||'') + ' ' + (x.n||'') + '' + f(x.a) + '' + btns + '';
+}).join('') || 'Нет операций';
+var cats = Array.of('Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы');
+document.getElementById('catSum').innerHTML = cats.map(function(c){
+var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
+return '' + c + '' + f(s) + '';
+}).join('');
+document.getElementById('oCrd').innerHTML = st.c.map(function(x){ return '' + x.name + ''; }).join('');
+var colors = Array.of('#007AFF','#34C759','#FF9500','#FF3B30','#AF52DE','#5856D6','#FF2D55','#00C7BE','#A2845E','#8E8E93');
+var expItems = Array.of();
+cats.forEach(function(c) {
+if (c === 'Зарплата' || c === 'Алименты' || c === 'Детские пособия') return;
+var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
+if (s > 0) expItems.push({ name:c, val:s });
+});
+var crdMonth = mOps.filter(function(x){ return x.t === 'Кредитный платеж' || x.t === 'Досрочное погашение'; }).reduce(function(a,b){ return a + b.a; }, 0);
+if (crdMonth > 0) expItems.push({ name:'Кредиты и досрочка', val:crdMonth });
+expItems.sort(function(a,b){ return b.val - a.val; });
+var totExp = expItems.reduce(function(a,b){ return a + b.val; }, 0);
+document.getElementById('expChart').innerHTML = totExp === 0 ? 'Добавьте первый расход, чтобы увидеть диаграмму.' : expItems.map(function(item, i) {
+var pct = Math.round((item.val / totExp) * 100), col = colors.at(i % colors.length);
+return '' + item.name + '' + f(item.val) + ' (' + pct + '%)';
+}).join('');
+var simList = list.map(function(x){ return { rate:x.rate, pay:x.pay, rem:x.rem }; });
+var mNames = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек');
+var pts = Array.of({ label:'Сейчас', val:tot }), stepM = 0;
+while (stepM < 42) {
+stepM++;
+var activeSim = simList.filter(function(s){ return s.rem > 0.1; }).sort(function(a,b){ return b.rate - a.rate; });
+if (activeSim.length === 0) break;
+var extraPool = st.p.ex;
+simList.forEach(function(s) {
+if (s.rem <= 0) { extraPool += s.pay; return; }
+var intr = s.rem * (s.rate / 100 / 12), body = Math.max(0, s.pay - intr);
+if (body > s.rem) { extraPool += (body - s.rem); body = s.rem; }
+s.rem = Math.max(0, s.rem - body);
+});
+activeSim.forEach(function(s) {
+if (extraPool <= 0 || s.rem <= 0) return;
+var take = Math.min(s.rem, extraPool);
+s.rem = Math.max(0, s.rem - take); extraPool -= take;
+});
+var remSum = simList.reduce(function(a,b){ return a + b.rem; }, 0);
+if (stepM % 6 === 0 || remSum <= 0.5) {
+var fd = new Date(now.getFullYear(), now.getMonth() + stepM, 1);
+pts.push({ label:mNames.at(fd.getMonth()) + ' ' + String(fd.getFullYear()).slice(2), val:Math.round(remSum) });
+if (remSum <= 0.5) break;
+}
+}
+var maxD = Math.max(1, tot);
+document.getElementById('debtChart').innerHTML = '' +
+pts.map(function(pt) {
+var h = Math.max(6, Math.round((pt.val / maxD) * 95)), kVal = pt.val >= 1000 ? Math.round(pt.val / 1000) + 'к' : pt.val + '₽', barCol = pt.val === 0 ? '#34C759' : '#007AFF';
+return '' + kVal + '' + pt.label + '';
+}).join('') + '';
 }
 draw();
 </script>
