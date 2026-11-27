@@ -1,242 +1,124 @@
-Детские пособия (Доход)
-
-
-Кому перевод
-Дети (Ребенок 1)
-Дети (Ребенок 2)
-Дети (Ребенок 3)
-
-
-Кредит
-Сумма (₽)
-Основной долг (₽)
-Проценты (₽)
-Комментарий
-Сохранить
-
-Настройка напоминаний✕
-
-День досрочки (1-31)
-Время уведомлений
-День недели переводов детям
-Воскресенье
-Понедельник
-Вторник
-Среда
-Четверг
-Пятница
-Суббота
-
-
-Сохранить расписание
-
-const INITIAL_CREDITS = [
-{ id:'c1', name:'Сбербанк (29.06.2026)', rate:30.5, day:29, payment:718.36, startDebt:11123 },
-{ id:'c2', name:'СБЕРБАНК (11.11.2026)', rate:29.887, day:11, payment:3229.20, startDebt:50000 },
-{ id:'c3', name:'Сбербанк (05.03.2026)', rate:28.9, day:5, payment:7618.90, startDebt:235108 },
-{ id:'c4', name:'СБЕРБАНК (06.06.2026)', rate:25.4, day:6, payment:4881.74, startDebt:157858 },
-{ id:'c5', name:'ПСБ_ипотека (20.01.2020)', rate:10.4, day:20, payment:817.45, startDebt:85429 }
-];
-const DEFAULT_PLANS = { alimony:20000, alimonyDay:15, benefits:15000, benefitsDay:3, kid1:3000, kid2:3000, kid3:3000, extraCredit:5000, extraDay:29, kidsWeekday:0, notifyTime:'10:00' };
-let state = JSON.parse(localStorage.getItem('fin_pwa_v6')) || { credits:INITIAL_CREDITS, plans:DEFAULT_PLANS, ops:[] };
-function saveState() { localStorage.setItem('fin_pwa_v6', JSON.stringify(state)); renderAll(); }
-function fmt(n) { return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n) + ' ₽'; }
-function renderAll() {
-const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const now = new Date();
-document.getElementById('currentMonthBadge').textContent = months.at(now.getMonth()) + ' ' + now.getFullYear();
-const curMonth = now.toISOString().slice(0,7);
-const monthOps = state.ops.filter(o => o.date.startsWith(curMonth));
-let totalDebt = 0;
-const computedCredits = state.credits.map(c => {
-const paidP = state.ops.filter(o => o.creditId === c.id && (o.type==='Кредитный платеж'||o.type==='Досрочное погашение')).reduce((s,o)=>s+Number(o.principal||0),0);
-const paidI = state.ops.filter(o => o.creditId === c.id).reduce((s,o)=>s+Number(o.interest||0),0);
-const rem = Math.max(0, c.startDebt - paidP);
-totalDebt += rem;
-return { ...c, paidP, paidI, rem };
-}).sort((a,b) => (a.rem===0?1:b.rem===0?-1:b.rate-a.rate));
-const todayDay = now.getDate(), todayDow = now.getDay();
-let overdue = [], urgent = [], upcoming = [];
-computedCredits.forEach(c => {
-if (c.rem <= 0) return;
-const paidM = monthOps.filter(o => o.creditId===c.id && o.type==='Кредитный платеж').reduce((s,o)=>s+Number(o.amount),0);
-if (paidM >= c.payment - 1) return;
-const diff = c.day - todayDay;
-if (diff < 0) overdue.push(c.name + ' (' + c.day + '-го — ' + fmt(c.payment) + ')');
-else if (diff <= 3) urgent.push(c.name + ' (' + (diff===0?'СЕГОДНЯ':'через '+diff+' дн.') + ' — ' + fmt(c.payment) + ')');
-else upcoming.push({ name:c.name, day:c.day, diff:diff, payment:c.payment });
-});
-const extraFact = monthOps.filter(o => o.type==='Досрочное погашение').reduce((s,o)=>s+Number(o.amount),0);
-if (extraFact < state.plans.extraCredit) {
-const diffEx = (state.plans.extraDay||29) - todayDay;
-if (diffEx >= 0 && diffEx <= 3) urgent.push('Досрочка (' + (diffEx===0?'СЕГОДНЯ':'через '+diffEx+' дн.') + ' — ' + fmt(state.plans.extraCredit - extraFact) + ')');
-}
-const wdays = ['воскресенье','понедельник','вторник','среду','четверг','пятницу','субботу'];
-const kNote = (todayDow === Number(state.plans.kidsWeekday)) ? '
-👦👧👦 Сегодня день перевода детям!' : '';
-const bEl = document.getElementById('reminderBanner');
-if (overdue.length > 0) {
-bEl.innerHTML = '🚨 Прошла дата платежа:
-' + overdue.join('
-') + kNote + '';
-} else if (urgent.length > 0) {
-bEl.innerHTML = '⏰ Напоминание:
-' + urgent.join('
-') + kNote + '';
-} else if (upcoming.length > 0) {
-upcoming.sort((a,b)=>a.diff-b.diff);
-const nextItem = upcoming.shift();
-bEl.innerHTML = '🔔 Ближайший платеж: ' + nextItem.name + ' — ' + nextItem.day + '-го числа (' + fmt(nextItem.payment) + ')' + kNote + '';
-} else {
-bEl.innerHTML = '✅ Все кредиты оплачены! Перевод детям в ' + wdays.at(state.plans.kidsWeekday) + '.' + kNote + '';
-}
-document.getElementById('heroTotalDebt').textContent = fmt(totalDebt);
-const mIn = monthOps.filter(o=>o.type==='Доход').reduce((s,o)=>s+Number(o.amount),0);
-const mOut = monthOps.filter(o=>o.type!=='Доход').reduce((s,o)=>s+Number(o.amount),0);
-const balEl = document.getElementById('heroMonthBalance');
-balEl.textContent = fmt(mIn - mOut);
-balEl.className = 'hero-val ' + (mIn - mOut >= 0 ? 'val-green' : 'val-red');
-const benF = monthOps.filter(o=>o.category==='Детские пособия').reduce((s,o)=>s+Number(o.amount),0);
-const aliF = monthOps.filter(o=>o.category==='Алименты').reduce((s,o)=>s+Number(o.amount),0);
-document.getElementById('incomeChecklist').innerHTML =
-'Детские пособия'+state.plans.benefitsDay+'-е число • План '+fmt(state.plans.benefits)+''+fmt(benF)+''+(benF>=state.plans.benefits?'Поступили':'Ожидаются')+'' +
-'Алименты'+state.plans.alimonyDay+'-е число • План '+fmt(state.plans.alimony)+''+fmt(aliF)+''+(aliF>=state.plans.alimony?'Поступили':'Ожидаются')+'';
-const kids = [{n:'Дети (Ребенок 1)',p:state.plans.kid1},{n:'Дети (Ребенок 2)',p:state.plans.kid2},{n:'Дети (Ребенок 3)',p:state.plans.kid3}];
-document.getElementById('kidsChecklist').innerHTML = kids.map(k => {
-const f = monthOps.filter(o=>o.category==='Дети: проезд и карманные'&&o.recipient===k.n).reduce((s,o)=>s+Number(o.amount),0);
-const w = Math.min(4, Math.floor(f / (k.p/4 || 1)));
-return ''+k.n+'План: '+fmt(k.p)+'/мес.'+fmt(f)+''+(f>=k.p?'4 из 4 нед.':w+' из 4 нед.')+'';
-}).join('');
-let cHtml = computedCredits.map(c => {
-const pm = monthOps.filter(o=>o.creditId===c.id&&o.type==='Кредитный платеж').reduce((s,o)=>s+Number(o.amount),0);
-const ok = pm >= c.payment - 1 || c.rem === 0;
-return ''+c.name+''+c.day+'-е число • План '+fmt(c.payment)+''+fmt(pm)+''+(c.rem===0?'Закрыт':ok?'Оплачено':'К оплате')+'';
-}).join('');
-cHtml += 'Досрочное погашение'+(state.plans.extraDay||29)+'-е число • План '+fmt(state.plans.extraCredit)+''+fmt(extraFact)+''+(extraFact>=state.plans.extraCredit?'Выполнено':'Осталось '+fmt(state.plans.extraCredit-extraFact))+'';
-document.getElementById('creditsChecklist').innerHTML = cHtml;
-let rank = 1;
-document.getElementById('creditsDetailList').innerHTML = computedCredits.map(c => {
-const pct = Math.min(100, Math.round((c.paidP / c.startDebt)*100));
-const rb = c.rem===0 ? 'ЗАКРЫТ' : ''+(rank===1?'🔥 ЦЕЛЬ №1':'Очередь #'+rank)+'';
-if (c.rem > 0) rank++;
-return ''+c.name+''+rb+'Ставка: '+c.rate+'% • Платеж: '+fmt(c.payment)+' ('+c.day+'-го)Остаток'+fmt(c.rem)+'Уплачено %'+fmt(c.paidI)+'';
-}).join('');
-const revOps = [...monthOps].reverse();
-document.getElementById('opsList').innerHTML = revOps.length===0 ? 'Нажмите «+» внизу, чтобы добавить первую запись.' : revOps.map(o => ''+(o.category||o.type)+''+o.date.split('-').reverse().join('.')+(o.recipient?' • '+o.recipient:'')+(o.creditName?' • '+o.creditName:'')+(o.note?' • '+o.note:'')+''+(o.type==='Доход'?'+':'-')+fmt(o.amount)+'удалить').join('');
-const cats = ['Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы'];
-const cTot = monthOps.filter(o=>o.type==='Кредитный платеж'||o.type==='Досрочное погашение').reduce((s,o)=>s+Number(o.amount),0);
-document.getElementById('categorySummary').innerHTML = cats.map(cat => ''+cat+''+fmt(monthOps.filter(o=>o.category===cat).reduce((s,o)=>s+Number(o.amount),0))+'').join('') + 'Кредиты (все платежи)'+fmt(cTot)+'';
-document.getElementById('opCredit').innerHTML = state.credits.map(c => ''+c.name+'').join('');
-}
-function switchTab(id, title, btn) {
-document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
-document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
-document.getElementById('tab-'+id).classList.add('active');
-btn.classList.add('active');
-document.getElementById('pageTitle').textContent = title;
-}
-function openModal() {
-document.getElementById('opDate').value = new Date().toISOString().slice(0,10);
-document.getElementById('opAmount').value = '';
-document.getElementById('opPrincipal').value = '';
-document.getElementById('opInterest').value = '';
-document.getElementById('opNote').value = '';
-toggleCreditFields();
-document.getElementById('opModal').classList.add('open');
-}
-function closeModal() { document.getElementById('opModal').classList.remove('open'); }
-function toggleCreditFields() {
-const t = document.getElementById('opType').value;
-const isC = (t==='Кредитный платеж'||t==='Досрочное погашение');
-document.getElementById('categoryBlock').style.display = isC?'none':'block';
-document.getElementById('creditSelectBlock').style.display = isC?'block':'none';
-document.getElementById('normalAmountBlock').style.display = isC?'none':'block';
-document.getElementById('creditSplitBlock').style.display = isC?'grid':'none';
-if (isC) document.getElementById('recipientBlock').style.display = 'none';
-else toggleRecipientField();
-}
-function toggleRecipientField() {
-document.getElementById('recipientBlock').style.display = (document.getElementById('opCategory').value==='Дети: проезд и карманные')?'block':'none';
-}
-function saveOperation() {
-const type = document.getElementById('opType').value;
-const date = document.getElementById('opDate').value;
-const note = document.getElementById('opNote').value.trim();
-const isC = (type==='Кредитный платеж'||type==='Досрочное погашение');
-if (!date) return alert('Укажите дату');
-if (isC) {
-const creditId = document.getElementById('opCredit').value;
-const cObj = state.credits.find(c=>c.id===creditId);
-const p = Number(document.getElementById('opPrincipal').value||0);
-const intr = Number(document.getElementById('opInterest').value||0);
-if (p+intr<=0) return alert('Укажите сумму');
-state.ops.push({ id:Date.now().toString(), date, type, creditId, creditName:cObj.name, amount:p+intr, principal:p, interest:intr, note });
-} else {
-const category = document.getElementById('opCategory').value;
-const amount = Number(document.getElementById('opAmount').value||0);
-const recipient = (category==='Дети: проезд и карманные') ? document.getElementById('opChild').value : '';
-const rType = (['Зарплата','Алименты','Детские пособия'].includes(category)) ? 'Доход' : 'Расход';
-if (amount<=0) return alert('Укажите сумму');
-state.ops.push({ id:Date.now().toString(), date, type:rType, category, recipient, amount, principal:0, interest:0, note });
-}
-saveState(); closeModal();
-}
-function deleteOp(id) { if (confirm('Удалить запись?')) { state.ops = state.ops.filter(o=>o.id!==id); saveState(); } }
-function openRemindersModal() {
-document.getElementById('remExtraDay').value = state.plans.extraDay || 29;
-document.getElementById('remTime').value = state.plans.notifyTime || '10:00';
-document.getElementById('remKidsWeekday').value = state.plans.kidsWeekday ?? 0;
-document.getElementById('creditDaysInputs').innerHTML = state.credits.map(c => ''+c.name+' — день списания').join('');
-document.getElementById('remModal').classList.add('open');
-}
-function closeRemindersModal() { document.getElementById('remModal').classList.remove('open'); }
-function saveRemindersSettings() {
-state.plans.extraDay = Number(document.getElementById('remExtraDay').value)||29;
-state.plans.notifyTime = document.getElementById('remTime').value||'10:00';
-state.plans.kidsWeekday = Number(document.getElementById('remKidsWeekday').value);
-state.credits.forEach(c => { const v = Number(document.getElementById('cd_'+c.id).value); if(v>=1&&v<=31) c.day=v; });
-saveState(); closeRemindersModal();
-}
-function editPlans() {
-const ali = prompt('План по алиментам (₽):', state.plans.alimony); if (ali===null) return;
-const ben = prompt('План по пособиям (₽):', state.plans.benefits); if (ben===null) return;
-const k1 = prompt('План на Ребенка 1 (₽):', state.plans.kid1);
-const k2 = prompt('План на Ребенка 2 (₽):', state.plans.kid2);
-const k3 = prompt('План на Ребенка 3 (₽):', state.plans.kid3);
-state.plans.alimony = Number(ali)||0; state.plans.benefits = Number(ben)||0;
-if(k1!==null) state.plans.kid1 = Number(k1)||0;
-if(k2!==null) state.plans.kid2 = Number(k2)||0;
-if(k3!==null) state.plans.kid3 = Number(k3)||0;
-saveState();
-}
-function downloadRemindersICS() {
-const now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
-const parts = (state.plans.notifyTime||'10:00').split(':');
-const tStr = parts.join('') + '00';
-const days = ['SU','MO','TU','WE','TH','FR','SA'];
-let lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FinPWA//RU'];
-state.credits.forEach(c => {
-const d = String(c.day).padStart(2,'0');
-lines.push('BEGIN:VEVENT','UID:cr-'+c.id+'@fin','DTSTART:'+y+m+d+'T'+tStr,'RRULE:FREQ=MONTHLY;BYMONTHDAY='+c.day,'SUMMARY:Кредит: '+c.name+' ('+c.payment+' руб.)','BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Оплата кредита','END:VALARM','END:VEVENT');
-});
-const ed = String(state.plans.extraDay||29).padStart(2,'0');
-lines.push('BEGIN:VEVENT','UID:ex-cr@fin','DTSTART:'+y+m+ed+'T'+tStr,'RRULE:FREQ=MONTHLY;BYMONTHDAY='+(state.plans.extraDay||29),'SUMMARY:Досрочное погашение ('+state.plans.extraCredit+' руб.)','BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Досрочка','END:VALARM','END:VEVENT');
-lines.push('BEGIN:VEVENT','UID:kids-wk@fin','DTSTART:'+y+m+String(now.getDate()).padStart(2,'0')+'T'+tStr,'RRULE:FREQ=WEEKLY;BYDAY='+days.at(state.plans.kidsWeekday??0),'SUMMARY:Перевод детям на проезд и карманные','BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Перевод детям','END:VALARM','END:VEVENT');
-lines.push('END:VCALENDAR');
-const a = document.createElement('a');
-a.href = URL.createObjectURL(new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'}));
-a.download = 'reminders.ics';
-a.click();
-}
-function exportCSV() {
-let rows = ['\uFEFFДата;Тип;Категория/Кредит;Получатель;Сумма;Основной долг;Проценты;Комментарий'];
-state.ops.forEach(o => rows.push([o.date, o.type, o.category||o.creditName, o.recipient||'', o.amount, o.principal, o.interest, o.note||''].join(';')));
-const a = document.createElement('a');
-a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'}));
-a.download = 'finance_backup.csv';
-a.click();
-}
-function resetAll() {
-if (confirm('Удалить все операции и вернуть стартовый долг 539 518 ₽?')) { localStorage.removeItem('fin_pwa_v6'); location.reload(); }
-}
-renderAll();
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Финансы</title>
+<style>
+:root{--bg:#F2F2F7;--card:#FFF;--text:#1C1C1E;--muted:#8E8E93;--blue:#007AFF;--green:#34C759;--red:#FF3B30;--orange:#FF9500;--border:#E5E5EA}
+*{box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+body{margin:0;background:var(--bg);color:var(--text);padding-bottom:95px}
+header{background:#FFF;position:sticky;top:0;z-index:50;padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:20px}
+.badge-m{background:#E5F1FF;color:var(--blue);padding:4px 10px;border-radius:12px;font-size:13px;font-weight:600}
+.box{padding:14px 16px;max-width:600px;margin:0 auto}
+.tab{display:none}.tab.active{display:block}
+.banner{border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:13px;line-height:1.4}
+.b-wrn{background:#FFF3E0;color:#E65100;border:1px solid #FFE0B2}
+.b-inf{background:#E5F1FF;color:#004085;border:1px solid #B8DAFF}
+.card{background:var(--card);border-radius:14px;padding:14px 16px;margin-bottom:12px}
+.ctitle{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.row:last-child{border-bottom:none}
+.tag{display:inline-block;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:600}
+.t-r{background:#FFEBEE;color:#D32F2F}.t-b{background:#E5F1FF;color:var(--blue)}
+.pbar{background:#E5E5EA;height:7px;border-radius:4px;overflow:hidden;margin-top:8px}
+.pfill{background:var(--green);height:100%}
+label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:10px 0 4px}
+input,select{width:100%;padding:10px;border:1px solid var(--border);border-radius:10px;font-size:16px}
+.btn{width:100%;padding:13px;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px;color:#FFF}
+.fab{position:fixed;right:18px;bottom:78px;width:56px;height:56px;border-radius:28px;background:var(--blue);color:#FFF;font-size:30px;border:none;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:120;cursor:pointer}
+nav{position:fixed;bottom:0;left:0;right:0;background:#FFF;border-top:1px solid var(--border);display:flex;padding:8px 0;z-index:100}
+.nbtn{background:none;border:none;color:var(--muted);font-size:11px;flex:1;cursor:pointer}
+.nbtn.active{color:var(--blue);font-weight:700}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end}
+.modal.open{display:flex}
+.sheet{background:#FFF;width:100%;max-width:600px;margin:0 auto;border-radius:20px 20px 0 0;padding:18px 16px 28px;max-height:90vh;overflow-y:auto}
+</style>
+</head>
+<body>
+<header><h1 id="pTitle">Календарь</h1><span class="badge-m">Ноябрь 2026</span></header>
+<div class="box">
+  <div id="tab-cal" class="tab active">
+    <div id="remBanner"></div>
+    <div class="grid2">
+      <div class="card" style="margin:0"><div style="font-size:12px;color:var(--muted)">Общий долг</div><div id="totDebt" style="font-size:18px;font-weight:700;color:var(--red)">539 518 ₽</div></div>
+      <div class="card" style="margin:0"><div style="font-size:12px;color:var(--muted)">Баланс месяца</div><div id="mBal" style="font-size:18px;font-weight:700;color:var(--green)">0 ₽</div></div>
+    </div>
+    <div class="card" style="margin-top:12px"><div class="ctitle">1. Поступления</div><div id="incList"></div></div>
+    <div class="card"><div class="ctitle">2. Дети (4 недели)</div><div id="kidList"></div></div>
+    <div class="card"><div class="ctitle">3. Кредиты и досрочка</div><div id="crdList"></div></div>
+  </div>
+  <div id="tab-ops" class="tab"><div class="card"><div class="ctitle">Операции за месяц</div><div id="opsList"></div></div></div>
+  <div id="tab-crd" class="tab"><div id="crdDet"></div></div>
+  <div id="tab-sum" class="tab">
+    <div class="card"><div class="ctitle">Сводка по категориям</div><div id="catSum"></div></div>
+    <div class="card">
+      <div class="ctitle">Управление</div>
+      <button type="button" class="btn" style="background:var(--orange)" onclick="openRem()">⏰ Дни и время напоминаний</button>
+      <button type="button" class="btn" style="background:var(--green)" onclick="dlICS()">🔔 В Календарь iPhone</button>
+      <button type="button" class="btn" style="background:var(--blue)" onclick="dlCSV()">📥 Скачать для Excel (.csv)</button>
+      <button type="button" class="btn" style="background:#8E8E93" onclick="editPlans()">⚙️ Имена детей и суммы планов</button>
+      <button type="button" class="btn" style="background:var(--red)" onclick="resetAll()">🗑 Сбросить данные</button>
+    </div>
+  </div>
+</div>
+<button type="button" class="fab" onclick="openOp()">+</button>
+<nav>
+  <button type="button" class="nbtn active" onclick="goTab('cal','Календарь',this)">📅<br>Календарь</button>
+  <button type="button" class="nbtn" onclick="goTab('ops','Операции',this)">📝<br>Операции</button>
+  <button type="button" class="nbtn" onclick="goTab('crd','Кредиты',this)">🏦<br>Кредиты</button>
+  <button type="button" class="nbtn" onclick="goTab('sum','Итоги',this)">📊<br>Итоги</button>
+</nav>
+<div class="modal" id="opMod"><div class="sheet">
+  <div style="display:flex;justify-content:space-between"><b>Новая операция</b><button type="button" onclick="closeOp()">X</button></div>
+  <label>Тип</label><select id="oType" onchange="updForm()"><option value="Расход">Расход</option><option value="Доход">Доход</option><option value="Кредитный платеж">Кредитный платеж</option><option value="Досрочное погашение">Досрочное погашение</option></select>
+  <label>Дата</label><input type="date" id="oDate">
+  <div id="bCat"><label>Категория</label><select id="oCat" onchange="updForm()"><option value="Продукты">Продукты</option><option value="Дети: проезд и карманные">Дети: проезд и карманные</option><option value="Питание собаки">Питание собаки</option><option value="ЖКХ и связь">ЖКХ и связь</option><option value="Транспорт">Транспорт</option><option value="Здоровье и аптеки">Здоровье и аптеки</option><option value="Одежда и быт">Одежда и быт</option><option value="Прочие расходы">Прочие расходы</option><option value="Зарплата">Зарплата (Доход)</option><option value="Алименты">Алименты (Доход)</option><option value="Детские пособия">Детские пособия (Доход)</option></select></div>
+  <div id="bKid" style="display:none"><label>Ребенок</label><select id="oKid"></select></div>
+  <div id="bCrd" style="display:none"><label>Кредит</label><select id="oCrd"></select></div>
+  <div id="bAmt"><label>Сумма (₽)</label><input type="number" id="oAmt"></div>
+  <div id="bSpl" style="display:none" class="grid2"><div><label>Основной долг (₽)</label><input type="number" id="oPri"></div><div><label>Проценты (₽)</label><input type="number" id="oInt"></div></div>
+  <label>Комментарий</label><input type="text" id="oNot">
+  <button type="button" class="btn" style="background:var(--blue)" onclick="saveOp()">Сохранить</button>
+</div></div>
+<div class="modal" id="remMod"><div class="sheet">
+  <div style="display:flex;justify-content:space-between"><b>Напоминания</b><button type="button" onclick="closeRem()">X</button></div>
+  <div class="grid2"><div><label>День досрочки</label><input type="number" id="rExD"></div><div><label>Время</label><input type="time" id="rTim"></div></div>
+  <label>День недели для детей</label><select id="rKidD"><option value="0">Воскресенье</option><option value="1">Понедельник</option><option value="2">Вторник</option><option value="3">Среда</option><option value="4">Четверг</option><option value="5">Пятница</option><option value="6">Суббота</option></select>
+  <div id="rCrdDays"></div>
+  <button type="button" class="btn" style="background:var(--blue)" onclick="saveRem()">Сохранить</button>
+</div></div>
+<script>
+var INIT_C=[{id:'c1',name:'Сбербанк (29.06.2026)',rate:30.5,day:29,pay:718.36,debt:11123},{id:'c2',name:'СБЕРБАНК (11.11.2026)',rate:29.887,day:11,pay:3229.20,debt:50000},{id:'c3',name:'Сбербанк (05.03.2026)',rate:28.9,day:5,pay:7618.90,debt:235108},{id:'c4',name:'СБЕРБАНК (06.06.2026)',rate:25.4,day:6,pay:4881.74,debt:157858},{id:'c5',name:'ПСБ_ипотека (20.01.2020)',rate:10.4,day:20,pay:817.45,debt:85429}];
+var INIT_P={ali:20000,aliD:15,ben:15000,benD:3,n1:'Ребенок 1',n2:'Ребенок 2',n3:'Ребенок 3',k1:3000,k2:3000,k3:3000,ex:5000,exD:29,kW:0,tim:'10:00'};
+var st=JSON.parse(localStorage.getItem('fin_v200'))||{c:INIT_C,p:INIT_P,ops:[]};
+function save(){localStorage.setItem('fin_v200',JSON.stringify(st));draw();}
+function f(n){return(Math.round(n*100)/100)+' ₽';}
+function goTab(id,t,b){document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('active');});document.querySelectorAll('.nbtn').forEach(function(x){x.classList.remove('active');});document.getElementById('tab-'+id).classList.add('active');b.classList.add('active');document.getElementById('pTitle').textContent=t;}
+function openOp(){document.getElementById('oDate').value=new Date().toISOString().slice(0,10);document.getElementById('oAmt').value='';document.getElementById('oPri').value='';document.getElementById('oInt').value='';document.getElementById('oNot').value='';updForm();document.getElementById('opMod').classList.add('open');}
+function closeOp(){document.getElementById('opMod').classList.remove('open');}
+function updForm(){var t=document.getElementById('oType').value,isC=(t==='Кредитный платеж'||t==='Досрочное погашение');document.getElementById('bCat').style.display=isC?'none':'block';document.getElementById('bCrd').style.display=isC?'block':'none';document.getElementById('bAmt').style.display=isC?'none':'block';document.getElementById('bSpl').style.display=isC?'grid':'none';document.getElementById('bKid').style.display=(!isC&&document.getElementById('oCat').value==='Дети: проезд и карманные')?'block':'none';}
+function saveOp(){var t=document.getElementById('oType').value,d=document.getElementById('oDate').value,n=document.getElementById('oNot').value;if(!d)return alert('Укажите дату');if(t==='Кредитный платеж'||t==='Досрочное погашение'){var cid=document.getElementById('oCrd').value,co=st.c.find(function(x){return x.id===cid;}),pr=Number(document.getElementById('oPri').value||0),inr=Number(document.getElementById('oInt').value||0);if(pr+inr<=0)return alert('Введите сумму');st.ops.push({id:String(Date.now()),d:d,t:t,cid:cid,cn:co.name,a:pr+inr,pr:pr,inr:inr,n:n});}else{var cat=document.getElementById('oCat').value,a=Number(document.getElementById('oAmt').value||0),rec=(cat==='Дети: проезд и карманные')?document.getElementById('oKid').value:'',rt=(['Зарплата','Алименты','Детские пособия'].indexOf(cat)>=0)?'Доход':'Расход';if(a<=0)return alert('Введите сумму');st.ops.push({id:String(Date.now()),d:d,t:rt,cat:cat,rec:rec,a:a,pr:0,inr:0,n:n});}save();closeOp();}
+function delOp(id){if(confirm('Удалить?')){st.ops=st.ops.filter(function(x){return x.id!==id;});save();}}
+function openRem(){document.getElementById('rExD').value=st.p.exD;document.getElementById('rTim').value=st.p.tim;document.getElementById('rKidD').value=st.p.kW;document.getElementById('rCrdDays').innerHTML=st.c.map(function(x){return''+x.name+'';}).join('');document.getElementById('remMod').classList.add('open');}
+function closeRem(){document.getElementById('remMod').classList.remove('open');}
+function saveRem(){st.p.exD=Number(document.getElementById('rExD').value)||29;st.p.tim=document.getElementById('rTim').value||'10:00';st.p.kW=Number(document.getElementById('rKidD').value);st.c.forEach(function(x){var v=Number(document.getElementById('d_'+x.id).value);if(v>=1&&v<=31)x.day=v;});save();closeRem();}
+function editPlans(){var m1=prompt('Имя 1:',st.p.n1);if(m1===null)return;var s1=prompt('Сумма 1:',st.p.k1);if(s1===null)return;var m2=prompt('Имя 2:',st.p.n2);if(m2===null)return;var s2=prompt('Сумма 2:',st.p.k2);if(s2===null)return;var m3=prompt('Имя 3:',st.p.n3);if(m3===null)return;var s3=prompt('Сумма 3:',st.p.k3);if(s3===null)return;var a=prompt('Алименты:',st.p.ali);if(a===null)return;var b=prompt('Пособия:',st.p.ben);if(b===null)return;st.p.n1=m1||'Ребенок 1';st.p.k1=Number(s1)||0;st.p.n2=m2||'Ребенок 2';st.p.k2=Number(s2)||0;st.p.n3=m3||'Ребенок 3';st.p.k3=Number(s3)||0;st.p.ali=Number(a)||0;st.p.ben=Number(b)||0;save();}
+function dlICS(){var nl=String.fromCharCode(10),now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,'0'),ts=st.p.tim.replace(':','')+'00',txt='BEGIN:VCALENDAR'+nl+'VERSION:2.0'+nl;st.c.forEach(function(x){txt+='BEGIN:VEVENT'+nl+'DTSTART:'+y+m+String(x.day).padStart(2,'0')+'T'+ts+nl+'RRULE:FREQ=MONTHLY;BYMONTHDAY='+x.day+nl+'SUMMARY:Кредит '+x.name+nl+'END:VEVENT'+nl;});txt+='END:VCALENDAR';var el=document.createElement('a');el.href=URL.createObjectURL(new Blob([txt],{type:'text/calendar'}));el.download='reminders.ics';el.click();}
+function dlCSV(){var nl=String.fromCharCode(10),txt='Дата;Тип;Категория;Получатель;Сумма;Долг;Проценты;Комментарий'+nl;st.ops.forEach(function(x){var rn=x.rec==='k1'?st.p.n1:(x.rec==='k2'?st.p.n2:(x.rec==='k3'?st.p.n3:x.rec));txt+=[x.d,x.t,x.cat||x.cn,rn||'',x.a,x.pr,x.inr,x.n||''].join(';')+nl;});var el=document.createElement('a');el.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));el.download='finance.csv';el.click();}
+function resetAll(){if(confirm('Сбросить?')){localStorage.removeItem('fin_v200');location.reload();}}
+function draw(){var now=new Date(),cm=now.toISOString().slice(0,7),td=now.getDate(),mOps=st.ops.filter(function(x){return x.d.startsWith(cm);}),tot=0,urg=[];var list=st.c.map(function(x){var pp=st.ops.filter(function(o){return o.cid===x.id;}).reduce(function(s,o){return s+o.pr;},0),pi=st.ops.filter(function(o){return o.cid===x.id;}).reduce(function(s,o){return s+o.inr;},0),rem=Math.max(0,x.debt-pp);tot+=rem;var pm=mOps.filter(function(o){return o.cid===x.id&&o.t==='Кредитный платеж';}).reduce(function(s,o){return s+o.a;},0);if(rem>0&&pm<x.pay-1&&x.day-td>=0&&x.day-td<=3)urg.push(x.name+' ('+x.day+'-го: '+f(x.pay)+')');return{id:x.id,name:x.name,rate:x.rate,day:x.day,pay:x.pay,debt:x.debt,pp:pp,pi:pi,rem:rem,pm:pm};}).sort(function(a,b){return b.rate-a.rate;});document.getElementById('remBanner').innerHTML=urg.length?'⏰ Скоро платеж: '+urg.join(', ')+'':'🔔 Все ближайшие платежи под контролем';document.getElementById('totDebt').textContent=f(tot);var inc=mOps.filter(function(x){return x.t==='Доход';}).reduce(function(s,x){return s+x.a;},0),out=mOps.filter(function(x){return x.t!=='Доход';}).reduce(function(s,x){return s+x.a;},0);document.getElementById('mBal').textContent=f(inc-out);var bf=mOps.filter(function(x){return x.cat==='Детские пособия';}).reduce(function(s,x){return s+x.a;},0),af=mOps.filter(function(x){return x.cat==='Алименты';}).reduce(function(s,x){return s+x.a;},0);document.getElementById('incList').innerHTML='Детские пособия
+'+st.p.benD+'-го • План '+f(st.p.ben)+''+f(bf)+'Алименты
+'+st.p.aliD+'-го • План '+f(st.p.ali)+''+f(af)+'';var ks=[{id:'k1',n:st.p.n1,p:st.p.k1},{id:'k2',n:st.p.n2,p:st.p.k2},{id:'k3',n:st.p.n3,p:st.p.k3}];document.getElementById('kidList').innerHTML=ks.map(function(k){var kf=mOps.filter(function(x){return x.rec===k.id;}).reduce(function(s,x){return s+x.a;},0);return''+k.n+'
+План '+f(k.p)+''+f(kf)+'';}).join('');document.getElementById('oKid').innerHTML=ks.map(function(k){return''+k.n+'';}).join('');var exF=mOps.filter(function(x){return x.t==='Досрочное погашение';}).reduce(function(s,x){return s+x.a;},0);document.getElementById('crdList').innerHTML=list.map(function(x){return''+x.name+'
+'+x.day+'-го • План '+f(x.pay)+''+f(x.pm)+'';}).join('')+'Досрочное погашение
+'+st.p.exD+'-го • План '+f(st.p.ex)+''+f(exF)+'';document.getElementById('crdDet').innerHTML=list.map(function(x,idx){var pct=Math.min(100,Math.round((x.pp/x.debt)*100));return''+x.name+''+(idx===0?'ЦЕЛЬ №1':'#'+(idx+1))+'Ставка '+x.rate+'% • Платеж '+f(x.pay)+'Остаток: '+f(x.rem)+' | Проценты: '+f(x.pi)+'';}).join('');document.getElementById('opsList').innerHTML=mOps.slice().reverse().map(function(x){var rn=x.rec==='k1'?st.p.n1:(x.rec==='k2'?st.p.n2:(x.rec==='k3'?st.p.n3:x.rec));return''+(x.cat||x.t)+'
+'+x.d+' '+(rn||x.cn||'')+' '+(x.n||'')+''+f(x.a)+' X';}).join('')||'Нет операций';var cats=['Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы'];document.getElementById('catSum').innerHTML=cats.map(function(c){var s=mOps.filter(function(x){return x.cat===c;}).reduce(function(a,b){return a+b.a;},0);return''+c+''+f(s)+'';}).join('');document.getElementById('oCrd').innerHTML=st.c.map(function(x){return''+x.name+'';}).join('');}
+draw();
+render();
+</script>
+  </body>
+</html>
