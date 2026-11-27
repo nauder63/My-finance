@@ -1,612 +1,376 @@
-<!DOCTYPE html>  
-<html lang="ru">  
-<head>  
-<meta charset="UTF-8">  
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">  
-<meta name="apple-mobile-web-app-capable" content="yes">  
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">  
-<meta name="apple-mobile-web-app-title" content="Финансы">  
-<title>Семейные финансы и кредиты</title>  
-<style>  
-  :root {  
-    --bg: #F2F2F7;  
-    --card: #FFFFFF;  
-    --text: #1C1C1E;  
-    --muted: #8E8E93;  
-    --blue: #007AFF;  
-    --green: #34C759;  
-    --red: #FF3B30;  
-    --orange: #FF9500;  
-    --border: #E5E5EA;  
-  }  
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }  
-  body { margin: 0; background: var(--bg); color: var(--text); padding-bottom: calc(85px + env(safe-area-inset-bottom)); }  
-    
-  header {  
-    background: rgba(255,255,255,0.88);  
-    backdrop-filter: blur(12px);  
-    -webkit-backdrop-filter: blur(12px);  
-    position: sticky; top: 0; z-index: 100;  
-    padding: calc(12px + env(safe-area-inset-top)) 16px 12px;  
-    border-bottom: 1px solid var(--border);  
-    display: flex; justify-content: space-between; align-items: center;  
-  }  
-  header h1 { margin: 0; font-size: 20px; font-weight: 700; }  
-  .month-badge { background: #E5F1FF; color: var(--blue); padding: 4px 10px; border-radius: 12px; font-size: 13px; font-weight: 600; }  
-  
-  .container { padding: 14px 16px; max-width: 600px; margin: 0 auto; }  
-  .tab-content { display: none; }  
-  .tab-content.active { display: block; animation: fadeIn 0.2s ease; }  
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }  
-  
-  .alert-banner {  
-    border-radius: 14px; padding: 12px 14px; margin-bottom: 12px;  
-    display: flex; align-items: flex-start; gap: 10px; font-size: 13px; line-height: 1.4;  
-  }  
-  .alert-red { background: #FFEBEE; border: 1px solid #FFCDD2; color: #B71C1C; }  
-  .alert-orange { background: #FFF3E0; border: 1px solid #FFE0B2; color: #E65100; }  
-  .alert-blue { background: #E5F1FF; border: 1px solid #B8DAFF; color: #004085; }  
-  .alert-green { background: #E3F9E8; border: 1px solid #C8E6C9; color: #1B5E20; }  
-  .alert-icon { font-size: 20px; line-height: 1.1; }  
-  
-  .card { background: var(--card); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }  
-  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 10px; }  
-    
-  .hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }  
-  .hero-box { background: var(--card); border-radius: 14px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }  
-  .hero-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }  
-  .hero-val { font-size: 18px; font-weight: 700; }  
-  .val-red { color: var(--red); }  
-  .val-green { color: var(--green); }  
-  .val-blue { color: var(--blue); }  
-  
-  .row-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }  
-  .row-item:last-child { border-bottom: none; padding-bottom: 0; }  
-  .row-item:first-child { padding-top: 0; }  
-  .item-main { font-size: 15px; font-weight: 600; }  
-  .item-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }  
-  .item-right { text-align: right; }  
-  .badge { display: inline-block; padding: 3px 8px; border-radius: 8px; font-size: 11px; font-weight: 600; margin-top: 3px; }  
-  .b-green { background: #E3F9E8; color: #1E8E3E; }  
-  .b-orange { background: #FFF3E0; color: #E65100; }  
-  .b-red { background: #FFEBEE; color: #D32F2F; }  
-  .b-blue { background: #E5F1FF; color: var(--blue); }  
-  
-  .progress-bg { background: #E5E5EA; height: 7px; border-radius: 4px; overflow: hidden; margin-top: 8px; }  
-  .progress-fill { background: var(--green); height: 100%; border-radius: 4px; transition: width 0.3s; }  
-  
-  label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 10px 0 5px; }  
-  input, select {  
-    width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;  
-    font-size: 16px; background: #FAFAFC; color: var(--text); outline: none;  
-  }  
-  input:focus, select:focus { border-color: var(--blue); background: #FFF; }  
-  .two-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }  
-  
-  .btn {  
-    width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px;  
-    font-weight: 600; cursor: pointer; margin-top: 10px; text-align: center;  
-  }  
-  .btn:first-of-type { margin-top: 0; }  
-  .btn-primary { background: var(--blue); color: #FFF; }  
-  .btn-green { background: var(--green); color: #FFF; }  
-  .btn-orange { background: var(--orange); color: #FFF; }  
-  .btn-secondary { background: #E5E5EA; color: var(--text); }  
-  .btn-danger { background: #FFEBEE; color: var(--red); }  
-  
-  .fab {  
-    position: fixed; right: 18px; bottom: calc(76px + env(safe-area-inset-bottom));  
-    width: 54px; height: 54px; border-radius: 27px; background: var(--blue); color: #FFF;  
-    font-size: 28px; border: none; box-shadow: 0 4px 12px rgba(0,122,255,0.4);  
-    display: flex; align-items: center; justify-content: center; z-index: 90; cursor: pointer;  
-  }  
-  
-  nav {  
-    position: fixed; bottom: 0; left: 0; right: 0;  
-    background: rgba(255,255,255,0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);  
-    border-top: 1px solid var(--border);  
-    display: flex; justify-content: space-around;  
-    padding: 8px 0 calc(8px + env(safe-area-inset-bottom)); z-index: 100;  
-  }  
-  .nav-btn {  
-    background: none; border: none; color: var(--muted); font-size: 11px; font-weight: 500;  
-    display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; flex: 1;  
-  }  
-  .nav-btn.active { color: var(--blue); font-weight: 600; }  
-  .nav-icon { font-size: 20px; }  
-  
-  .modal {  
-    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45);  
-    z-index: 200; align-items: flex-end; justify-content: center;  
-  }  
-  .modal.open { display: flex; }  
-  .modal-sheet {  
-    background: var(--card); width: 100%; max-width: 600px; border-radius: 20px 20px 0 0;  
-    padding: 18px 16px calc(24px + env(safe-area-inset-bottom));  
-    max-height: 90vh; overflow-y: auto; animation: slideUp 0.25s ease;  
-  }  
-  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }  
-  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }  
-  .close-btn { background: #E5E5EA; border: none; width: 28px; height: 28px; border-radius: 14px; font-weight: bold; }  
-</style>  
-</head>  
-<body>  
-  
-<header>  
-  <h1 id="pageTitle">Календарь</h1>  
-  <span class="month-badge" id="currentMonthBadge">Ноябрь 2026</span>  
-</header>  
-  
-<div class="container">  
-  <!-- ВКЛАДКА 1: КАЛЕНДАРЬ И ОБЗОР -->  
-  <div id="tab-calendar" class="tab-content active">  
-    <div id="reminderBanner"></div>  
-  
-    <div class="hero-grid">  
-      <div class="hero-box">  
-        <div class="hero-label">Общий долг (5 кредитов)</div>  
-        <div class="hero-val val-red" id="heroTotalDebt">539 518 ₽</div>  
-      </div>  
-      <div class="hero-box">  
-        <div class="hero-label">Баланс за месяц</div>  
-        <div class="hero-val val-green" id="heroMonthBalance">0 ₽</div>  
-      </div>  
-    </div>  
-  
-    <div class="card">  
-      <div class="card-title">1. Ожидаемые поступления</div>  
-      <div id="incomeChecklist"></div>  
-    </div>  
-  
-    <div class="card">  
-      <div class="card-title">2. Дети: проезд и карманные (4 нед.)</div>  
-      <div id="kidsChecklist"></div>  
-    </div>  
-  
-    <div class="card">  
-      <div class="card-title">3. Кредиты и досрочка (по графику)</div>  
-      <div id="creditsChecklist"></div>  
-    </div>  
-  </div>  
-  
-  <!-- ВКЛАДКА 2: ЖУРНАЛ ОПЕРАЦИЙ -->  
-  <div id="tab-ops" class="tab-content">  
-    <div class="card">  
-      <div class="card-title">История операций за месяц</div>  
-      <div id="opsList"></div>  
-    </div>  
-  </div>  
-  
-  <!-- ВКЛАДКА 3: КРЕДИТЫ (ЛАВИНА) -->  
-  <div id="tab-credits" class="tab-content">  
-    <div class="card" style="background:#E5F1FF; border:1px solid #B8DAFF;">  
-      <div style="font-size:13px; color:#004085;">  
-        <b>Стратегия «Лавина»:</b> обязательные платежи <b>17 265,65 ₽</b> + досрочно <b>5 000 ₽/мес</b>. Все свободные деньги идут в кредит со статусом <b>Цель №1</b>. Финал всех 5 долгов: <b>Сентябрь 2029</b>.  
-      </div>  
-    </div>  
-    <div id="creditsDetailList"></div>  
-  </div>  
-  
-  <!-- ВКЛАДКА 4: ИТОГИ И НАСТРОЙКИ -->  
-  <div id="tab-summary" class="tab-content">  
-    <div class="card">  
-      <div class="card-title">Сводка по категориям за месяц</div>  
-      <div id="categorySummary"></div>  
-    </div>  
-    <div class="card">  
-      <div class="card-title">Напоминания и резервная копия</div>  
-      <button class="btn btn-orange" onclick="openRemindersModal()">⏰ Настроить дни и время напоминаний</button>  
-      <button class="btn btn-green" onclick="downloadRemindersICS()">🔔 Добавить в Календарь iPhone (Push)</button>  
-      <button class="btn btn-primary" onclick="exportCSV()">📥 Скачать базу для Excel (.csv)</button>  
-      <button class="btn btn-secondary" onclick="editPlans()">⚙️ Настроить суммы планов (алименты / дети)</button>  
-      <button class="btn btn-danger" onclick="resetAll()">🗑 Сбросить данные к начальным</button>  
-    </div>  
-  </div>  
-</div>  
-  
-<button class="fab" onclick="openModal()">+</button>  
-  
-<nav>  
-  <button class="nav-btn active" onclick="switchTab('calendar', 'Календарь', this)">  
-    <span class="nav-icon">📅</span><span>Календарь</span>  
-  </button>  
-  <button class="nav-btn" onclick="switchTab('ops', 'Операции', this)">  
-    <span class="nav-icon">📝</span><span>Операции</span>  
-  </button>  
-  <button class="nav-btn" onclick="switchTab('credits', '5 Кредитов', this)">  
-🏦Кредиты  
-  
-  
-📊Итоги  
-  
-Новая операция  
-✕  
-  
-Тип операции  
-Расход  
-Доход  
-Кредитный платеж (по графику)  
-Досрочное погашение  
-  
-Дата  
-  
-Категория  
-Продукты  
-Дети: проезд и карманные  
-Питание собаки  
-ЖКХ и связь  
-Транспорт  
-Здоровье и аптеки  
-Одежда и быт  
-Прочие расходы  
-Зарплата (Доход)  
-Алименты (Доход)  
-Детские пособия (Доход)  
-  
-  
-Кому перевод (ребенок)  
-Дети (Ребенок 1)  
-Дети (Ребенок 2)  
-Дети (Ребенок 3)  
-  
-  
-Выберите кредит  
-  
-Сумма (₽)  
-  
-В основной долг (₽)  
-  
-В проценты (₽)  
-  
-Комментарий (необязательно)  
-Сохранить операцию  
-  
-Настройка напоминаний  
-✕  
-  
-День досрочки (1–31)  
-  
-Время уведомлений  
-  
-День недели для переводов детям (3 ребенка)  
-Воскресенье  
-Понедельник  
-Вторник  
-Среда  
-Четверг  
-Пятница  
-Суббота  
-Сохранить расписание  
-  
-const INITIAL_CREDITS = [  
-{ id: 'c1', name: 'Сбербанк (29.06.2026)', rate: 30.5, day: 29, payment: 718.36, startDebt: 11123 },  
-{ id: 'c2', name: 'СБЕРБАНК (11.11.2026)', rate: 29.887, day: 11, payment: 3229.20, startDebt: 50000 },  
-{ id: 'c3', name: 'Сбербанк (05.03.2026)', rate: 28.9, day: 5, payment: 7618.90, startDebt: 235108 },  
-{ id: 'c4', name: 'СБЕРБАНК (06.06.2026)', rate: 25.4, day: 6, payment: 4881.74, startDebt: 157858 },  
-{ id: 'c5', name: 'ПСБ_ипотека (20.01.2020)', rate: 10.4, day: 20, payment: 817.45, startDebt: 85429 }  
-];  
-const DEFAULT_PLANS = {  
-alimony: 20000, alimonyDay: 15,  
-benefits: 15000, benefitsDay: 3,  
-kid1: 3000, kid2: 3000, kid3: 3000,  
-extraCredit: 5000,  
-extraDay: 29,  
-kidsWeekday: 0, // Воскресенье  
-notifyTime: '10:00'  
-};  
-let state = JSON.parse(localStorage.getItem('fin_pwa_v2')) || {  
-credits: INITIAL_CREDITS,  
-plans: DEFAULT_PLANS,  
-ops: []  
-};  
-function saveState() {  
-localStorage.setItem('fin_pwa_v2', JSON.stringify(state));  
-renderAll();  
-}  
-function fmt(num) {  
-return new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(num) + ' ₽';  
-}  
-function getCurrentMonthPrefix() {  
-return new Date().toISOString().slice(0, 7);  
-}  
-function updateMonthHeader() {  
-const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];  
-const d = new Date();  
-document.getElementById('currentMonthBadge').textContent = months[d.getMonth()] + ' ' + d.getFullYear();  
-}  
-function buildReminderBanner(computedCredits, monthOps) {  
-const now = new Date();  
-const todayDay = now.getDate();  
-const todayDow = now.getDay();  
-const bannerEl = document.getElementById('reminderBanner');  
-let overdue = [];  
-let urgent = [];  
-let upcoming = [];  
-// Проверка 5 кредитов  
-computedCredits.forEach(c => {  
-if (c.rem <= 0) return;  
-const paidThisMonth = monthOps  
-.filter(o => o.creditId === c.id && o.type === 'Кредитный платеж')  
-.reduce((s, o) => s + Number(o.amount), 0);  
-if (paidThisMonth >= c.payment - 1) return;  
-const diff = c.day - todayDay;  
-if (diff < 0) overdue.push(${c.name} (${c.day}-го числа — ${fmt(c.payment)}));  
-else if (diff <= 3) urgent.push(${c.name} (${diff === 0 ? 'СЕГОДНЯ' : 'через ' + diff + ' дн.'}, ${c.day}-го — ${fmt(c.payment)}));  
-else upcoming.push({ name: c.name, day: c.day, diff, payment: c.payment });  
-});  
-// Проверка досрочки  
-const extraFact = monthOps.filter(o => o.type === 'Досрочное погашение').reduce((s, o) => s + Number(o.amount), 0);  
-if (extraFact < state.plans.extraCredit) {  
-const remExtra = state.plans.extraCredit - extraFact;  
-const diffEx = (state.plans.extraDay || 29) - todayDay;  
-if (diffEx >= 0 && diffEx <= 3) {  
-urgent.push(Досрочное погашение (${diffEx === 0 ? 'СЕГОДНЯ' : 'через ' + diffEx + ' дн.'} — ${fmt(remExtra)}));  
-}  
-}  
-// Проверка дня недели детских переводов  
-const weekdays = ['воскресенье','понедельник','вторник','среду','четверг','пятницу','субботу'];  
-const kidsNote = (todayDow === Number(state.plans.kidsWeekday))  
-? <br>👦👧👦 <b>Сегодня день еженедельного перевода детям</b> (проезд и карманные)!  
-: '';  
-if (overdue.length > 0) {  
-bannerEl.innerHTML = <div class="alert-banner alert-red"><div class="alert-icon">🚨</div><div><b>Прошла дата платежа:</b><br>${overdue.join('<br>')}${kidsNote}</div></div>;  
-} else if (urgent.length > 0) {  
-bannerEl.innerHTML = <div class="alert-banner alert-orange"><div class="alert-icon">⏰</div><div><b>Напоминание о платеже:</b><br>${urgent.join('<br>')}${kidsNote}</div></div>;  
-} else if (upcoming.length > 0) {  
-upcoming.sort((a, b) => a.diff - b.diff);  
-const next = upcoming;  
-bannerEl.innerHTML = <div class="alert-banner alert-blue"><div class="alert-icon">🔔</div><div><b>Ближайший платеж:</b> ${next.name} — <b>${next.day}-го числа</b> (через ${next.diff} дн.) на сумму <b>${fmt(next.payment)}</b>.${kidsNote}</div></div>;  
-} else {  
-bannerEl.innerHTML = <div class="alert-banner alert-green"><div class="alert-icon">✅</div><div><b>Все кредиты в этом месяце оплачены!</b> Переводы детям по графику в ${weekdays[state.plans.kidsWeekday]}.${kidsNote}</div></div>;  
-}  
-}  
-function renderAll() {  
-updateMonthHeader();  
-const curMonth = getCurrentMonthPrefix();  
-const monthOps = state.ops.filter(o => o.date.startsWith(curMonth));  
-let totalDebt = 0;  
-const computedCredits = state.credits.map(c => {  
-const paidPrincipal = state.ops  
-.filter(o => o.creditId === c.id && (o.type === 'Кредитный платеж' || o.type === 'Досрочное погашение'))  
-.reduce((sum, o) => sum + Number(o.principal || 0), 0);  
-const paidInterest = state.ops  
-.filter(o => o.creditId === c.id)  
-.reduce((sum, o) => sum + Number(o.interest || 0), 0);  
-const rem = Math.max(0, c.startDebt - paidPrincipal);  
-totalDebt += rem;  
-return { ...c, paidPrincipal, paidInterest, rem };  
-}).sort((a, b) => (a.rem === 0 ? 1 : b.rem === 0 ? -1 : b.rate - a.rate));  
-buildReminderBanner(computedCredits, monthOps);  
-document.getElementById('heroTotalDebt').textContent = fmt(totalDebt);  
-const monthIn = monthOps.filter(o => o.type === 'Доход').reduce((s, o) => s + Number(o.amount), 0);  
-const monthOut = monthOps.filter(o => o.type !== 'Доход').reduce((s, o) => s + Number(o.amount), 0);  
-const balEl = document.getElementById('heroMonthBalance');  
-balEl.textContent = fmt(monthIn - monthOut);  
-balEl.className = 'hero-val ' + (monthIn - monthOut >= 0 ? 'val-green' : 'val-red');  
-// 1. Поступления  
-const benFact = monthOps.filter(o => o.category === 'Детские пособия').reduce((s, o) => s + Number(o.amount), 0);  
-const aliFact = monthOps.filter(o => o.category === 'Алименты').reduce((s, o) => s + Number(o.amount), 0);  
-document.getElementById('incomeChecklist').innerHTML = <div class="row-item"> <div><div class="item-main">Детские пособия</div><div class="item-sub">${state.plans.benefitsDay}-е число • План ${fmt(state.plans.benefits)}</div></div> <div class="item-right"><div class="item-main">${fmt(benFact)}</div><span class="badge ${benFact >= state.plans.benefits ? 'b-green' : 'b-orange'}">${benFact >= state.plans.benefits ? 'Поступили' : 'Ожидаются'}</span></div> </div> <div class="row-item"> <div><div class="item-main">Алименты</div><div class="item-sub">${state.plans.alimonyDay}-е число • План ${fmt(state.plans.alimony)}</div></div> <div class="item-right"><div class="item-main">${fmt(aliFact)}</div><span class="badge ${aliFact >= state.plans.alimony ? 'b-green' : 'b-orange'}">${aliFact >= state.plans.alimony ? 'Поступили' : 'Ожидаются'}</span></div> </div>;  
-// 2. Дети  
-const kids = [  
-{ name: 'Дети (Ребенок 1)', plan: state.plans.kid1 },  
-{ name: 'Дети (Ребенок 2)', plan: state.plans.kid2 },  
-{ name: 'Дети (Ребенок 3)', plan: state.plans.kid3 }  
-];  
-document.getElementById('kidsChecklist').innerHTML = kids.map(k => {  
-const fact = monthOps.filter(o => o.category === 'Дети: проезд и карманные' && o.recipient === k.name).reduce((s, o) => s + Number(o.amount), 0);  
-const weeks = Math.min(4, Math.floor(fact / (k.plan / 4 || 1)));  
-return <div class="row-item"> <div><div class="item-main">${k.name}</div><div class="item-sub">План: ${fmt(k.plan)}/мес.</div></div> <div class="item-right"><div class="item-main">${fmt(fact)}</div><span class="badge ${fact >= k.plan ? 'b-green' : 'b-blue'}">${fact >= k.plan ? '4 из 4 нед.' : weeks + ' из 4 нед.'}</span></div> </div>;  
-}).join('');  
-// 3. Кредиты  
-const extraFact = monthOps.filter(o => o.type === 'Досрочное погашение').reduce((s, o) => s + Number(o.amount), 0);  
-let credHtml = computedCredits.map(c => {  
-const paidThisMonth = monthOps.filter(o => o.creditId === c.id && o.type === 'Кредитный платеж').reduce((s, o) => s + Number(o.amount), 0);  
-const ok = paidThisMonth >= c.payment - 1 || c.rem === 0;  
-return <div class="row-item"> <div><div class="item-main">${c.name}</div><div class="item-sub">${c.day}-е число • План ${fmt(c.payment)}</div></div> <div class="item-right"><div class="item-main">${fmt(paidThisMonth)}</div><span class="badge ${ok ? 'b-green' : 'b-red'}">${c.rem === 0 ? 'Закрыт' : ok ? 'Оплачено' : 'К оплате'}</span></div> </div>;  
-}).join('');  
-credHtml += <div class="row-item"> <div><div class="item-main">Досрочное погашение</div><div class="item-sub">${state.plans.extraDay || 29}-е число • План: ${fmt(state.plans.extraCredit)}</div></div> <div class="item-right"><div class="item-main">${fmt(extraFact)}</div><span class="badge ${extraFact >= state.plans.extraCredit ? 'b-green' : 'b-orange'}">${extraFact >= state.plans.extraCredit ? 'Выполнено' : 'Осталось ' + fmt(state.plans.extraCredit - extraFact)}</span></div> </div>;  
-document.getElementById('creditsChecklist').innerHTML = credHtml;  
-// Вкладка Кредиты  
-let activeRank = 1;  
-document.getElementById('creditsDetailList').innerHTML = computedCredits.map(c => {  
-const pct = Math.min(100, Math.round((c.paidPrincipal / c.startDebt) * 100));  
-const rankBadge = c.rem === 0 ? 'ЗАКРЫТ' : <span class="badge ${activeRank === 1 ? 'b-red' : 'b-blue'}">${activeRank === 1 ? '🔥 ЦЕЛЬ №1 (ЛАВИНА)' : 'Очередь #' + activeRank}</span>;  
-if (c.rem > 0) activeRank++;  
-return <div class="card"> <div style="display:flex; justify-content:space-between; align-items:center;"> <div class="item-main">${c.name}</div> ${rankBadge} </div> <div class="item-sub">Ставка: <b>${c.rate}%</b> • Платеж: <b>${fmt(c.payment)}</b> (${c.day}-го числа)</div> <div style="display:flex; justify-content:space-between; margin-top:10px;"> <div><div class="hero-label">Остаток долга</div><div style="font-size:17px; font-weight:700;">${fmt(c.rem)}</div></div> <div style="text-align:right;"><div class="hero-label">Уплачено %</div><div style="font-size:15px; color:var(--muted);">${fmt(c.paidInterest)}</div></div> </div> <div class="progress-bg"><div class="progress-fill" style="width:${pct}%"></div></div> </div>;  
-}).join('');  
-// Вкладка Операции  
-const sortedOps = [...monthOps].reverse();  
-document.getElementById('opsList').innerHTML = sortedOps.length === 0  
-? 'Пока нет записей за этот месяц. Нажмите «+» внизу, чтобы добавить первую операцию.'  
-: sortedOps.map(o => <div class="row-item"> <div> <div class="item-main">${o.type === 'Доход' || o.type === 'Расход' ? o.category : o.type}</div> <div class="item-sub">${o.date.split('-').reverse().join('.')} ${o.recipient ? '• ' + o.recipient : ''} ${o.creditName ? '• ' + o.creditName : ''} ${o.note ? '• ' + o.note : ''}</div> </div> <div class="item-right"> <div class="item-main ${o.type === 'Доход' ? 'val-green' : ''}">${o.type === 'Доход' ? '+' : '-'}${fmt(o.amount)}</div> <button onclick="deleteOp('${o.id}')" style="border:none; background:none; color:var(--muted); font-size:11px; padding:2px 0;">удалить</button> </div> </div>).join('');  
-// Вкладка Итоги  
-const cats = ['Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы'];  
-const creditMonthTotal = monthOps.filter(o => o.type === 'Кредитный платеж' || o.type === 'Досрочное погашение').reduce((s, o) => s + Number(o.amount), 0);  
-let sumHtml = cats.map(cat => {  
-const val = monthOps.filter(o => o.category === cat).reduce((s, o) => s + Number(o.amount), 0);  
-return <div class="row-item"><div class="item-main">${cat}</div><div class="item-main">${fmt(val)}</div></div>;  
-}).join('');  
-sumHtml += <div class="row-item"><div class="item-main">Кредиты (все платежи)</div><div class="item-main">${fmt(creditMonthTotal)}</div></div>;  
-document.getElementById('categorySummary').innerHTML = sumHtml;  
-document.getElementById('opCredit').innerHTML = state.credits.map(c => <option value="${c.id}">${c.name}</option>).join('');  
-}  
-function switchTab(tabId, title, btn) {  
-document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));  
-document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));  
-document.getElementById('tab-' + tabId).classList.add('active');  
-btn.classList.add('active');  
-document.getElementById('pageTitle').textContent = title;  
-}  
-function openModal() {  
-document.getElementById('opDate').value = new Date().toISOString().slice(0, 10);  
-document.getElementById('opAmount').value = '';  
-document.getElementById('opPrincipal').value = '';  
-document.getElementById('opInterest').value = '';  
-document.getElementById('opNote').value = '';  
-toggleCreditFields();  
-document.getElementById('opModal').classList.add('open');  
-}  
-function closeModal() {  
-document.getElementById('opModal').classList.remove('open');  
-}  
-function openRemindersModal() {  
-document.getElementById('remExtraDay').value = state.plans.extraDay || 29;  
-document.getElementById('remTime').value = state.plans.notifyTime || '10:00';  
-document.getElementById('remKidsWeekday').value = state.plans.kidsWeekday ?? 0;  
-document.getElementById('creditDaysInputs').innerHTML = state.credits.map(c => `  
-  
-${c.name} — день списания (1–31)  
-`).join('');  
-document.getElementById('remModal').classList.add('open');  
-}  
-function closeRemindersModal() {  
-document.getElementById('remModal').classList.remove('open');  
-}  
-function saveRemindersSettings() {  
-state.plans.extraDay = Math.min(31, Math.max(1, Number(document.getElementById('remExtraDay').value) || 29));  
-state.plans.notifyTime = document.getElementById('remTime').value || '10:00';  
-state.plans.kidsWeekday = Number(document.getElementById('remKidsWeekday').value);  
-state.credits.forEach(c => {  
-const val = Number(document.getElementById('cday_' + c.id).value);  
-if (val >= 1 && val <= 31) c.day = val;  
-});  
-saveState();  
-closeRemindersModal();  
-alert('Расписание обновлено! Нажмите «Добавить в Календарь iPhone», чтобы обновить push-уведомления.');  
-}  
-function toggleCreditFields() {  
-const type = document.getElementById('opType').value;  
-const isCredit = (type === 'Кредитный платеж' || type === 'Досрочное погашение');  
-document.getElementById('categoryBlock').style.display = isCredit ? 'none' : 'block';  
-document.getElementById('creditSelectBlock').style.display = isCredit ? 'block' : 'none';  
-document.getElementById('normalAmountBlock').style.display = isCredit ? 'none' : 'block';  
-document.getElementById('creditSplitBlock').style.display = isCredit ? 'grid' : 'none';  
-if (isCredit) document.getElementById('recipientBlock').style.display = 'none';  
-else toggleRecipientField();  
-}  
-function toggleRecipientField() {  
-const cat = document.getElementById('opCategory').value;  
-document.getElementById('recipientBlock').style.display = (cat === 'Дети: проезд и карманные') ? 'block' : 'none';  
-}  
-function saveOperation() {  
-const type = document.getElementById('opType').value;  
-const date = document.getElementById('opDate').value;  
-const note = document.getElementById('opNote').value.trim();  
-const isCredit = (type === 'Кредитный платеж' || type === 'Досрочное погашение');  
-if (!date) return alert('Укажите дату');  
-if (isCredit) {  
-const creditId = document.getElementById('opCredit').value;  
-const creditObj = state.credits.find(c => c.id === creditId);  
-const principal = Number(document.getElementById('opPrincipal').value || 0);  
-const interest = Number(document.getElementById('opInterest').value || 0);  
-if (principal + interest <= 0) return alert('Укажите сумму основного долга или процентов');  
-state.ops.push({  
-id: ++[Date.now](http://date.now/)++().toString(),  
-date, type, creditId, creditName: creditObj.name,  
-amount: principal + interest, principal, interest, note  
-});  
-} else {  
-const category = document.getElementById('opCategory').value;  
-const amount = Number(document.getElementById('opAmount').value || 0);  
-const recipient = (category === 'Дети: проезд и карманные') ? document.getElementById('opChild').value : '';  
-const realType = (['Зарплата','Алименты','Детские пособия'].includes(category)) ? 'Доход' : 'Расход';  
-if (amount <= 0) return alert('Введите сумму больше нуля');  
-state.ops.push({  
-id: Date.now().toString(),  
-date, type: realType, category, recipient, amount, principal: 0, interest: 0, note  
-});  
-}  
-saveState();  
-closeModal();  
-}  
-  
-function deleteOp(id) {  
-if (confirm('Удалить эту запись?')) {  
-state.ops = state.ops.filter(o => o.id !== id);  
-saveState();  
-}  
-}  
-function editPlans() {  
-const ali = prompt('План по алиментам в месяц (₽):', state.plans.alimony);  
-if (ali === null) return;  
-const ben = prompt('План по детским пособиям в месяц (₽):', state.plans.benefits);  
-if (ben === null) return;  
-const k1 = prompt('План на Ребенка 1 в месяц (₽):', state.plans.kid1);  
-const k2 = prompt('План на Ребенка 2 в месяц (₽):', state.plans.kid2);  
-const k3 = prompt('План на Ребенка 3 в месяц (₽):', state.plans.kid3);  
-state.plans.alimony = Number(ali) || 0;  
-state.plans.benefits = Number(ben) || 0;  
-if (k1 !== null) state.plans.kid1 = Number(k1) || 0;  
-if (k2 !== null) state.plans.kid2 = Number(k2) || 0;  
-if (k3 !== null) state.plans.kid3 = Number(k3) || 0;  
-saveState();  
-}  
-function downloadRemindersICS() {  
-let ics = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//FinancePWA//RU\r\n";  
-const now = new Date();  
-const y = now.getFullYear();  
-const m = String(now.getMonth() + 1).padStart(2, '0');  
-const [hh, mm] = (state.plans.notifyTime || '10:00').split(':');  
-const timeStr = ${hh}${mm}00;  
-const icsDays = ['SU','MO','TU','WE','TH','FR','SA'];  
-const kidByDay = icsDays[state.plans.kidsWeekday ?? 0];  
-// 5 кредитов  
-state.credits.forEach(c => {  
-const d = String(c.day).padStart(2, '0');  
-ics += "BEGIN:VEVENT\r\n";  
-ics += UID:credit-${c.id}-${Date.now()}@financepwa\r\n;  
-ics += DTSTART:${y}${m}${d}T${timeStr}\r\n;  
-ics += RRULE:FREQ=MONTHLY;BYMONTHDAY=${c.day}\r\n;  
-ics += SUMMARY:Оплата кредита: ${c.name} (${c.payment} ₽)\r\n;  
-ics += DESCRIPTION:Плановый платеж ${c.payment} ₽. Отметьте оплату в приложении Финансы.\r\n;  
-ics += "BEGIN:VALARM\r\nTRIGGER:-PT24H\r\nACTION:DISPLAY\r\nDESCRIPTION:Завтра платеж по кредиту\r\nEND:VALARM\r\n";  
-ics += "BEGIN:VALARM\r\nTRIGGER:PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:Сегодня платеж по кредиту\r\nEND:VALARM\r\n";  
-ics += "END:VEVENT\r\n";  
-});  
-// Досрочное погашение  
-const ed = String(state.plans.extraDay || 29).padStart(2, '0');  
-ics += "BEGIN:VEVENT\r\n";  
-ics += UID:extra-credit-${Date.now()}@financepwa\r\n;  
-ics += DTSTART:${y}${m}${ed}T${timeStr}\r\n;  
-ics += RRULE:FREQ=MONTHLY;BYMONTHDAY=${state.plans.extraDay || 29}\r\n;  
-ics += SUMMARY:Досрочное погашение кредита (${state.plans.extraCredit} ₽)\r\n;  
-ics += "DESCRIPTION:Внесите досрочный платеж в Цель №1 (метод Лавина) и подайте заявление в банке.\r\n";  
-ics += "BEGIN:VALARM\r\nTRIGGER:PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:День досрочного платежа\r\nEND:VALARM\r\n";  
-ics += "END:VEVENT\r\n";  
-// Еженедельный перевод детям  
-ics += "BEGIN:VEVENT\r\n";  
-ics += UID:kids-weekly-${Date.now()}@financepwa\r\n;  
-ics += DTSTART:${y}${m}${String(now.getDate()).padStart(2, '0')}T${timeStr}\r\n;  
-ics += RRULE:FREQ=WEEKLY;BYDAY=${kidByDay}\r\n;  
-ics += "SUMMARY:Перевод детям на проезд и карманные (3 ребенка)\r\n";  
-ics += "DESCRIPTION:Еженедельный перевод на проезд на тренировку и карманные расходы.\r\n";  
-ics += "BEGIN:VALARM\r\nTRIGGER:PT0M\r\nACTION:DISPLAY\r\nDESCRIPTION:Перевод детям\r\nEND:VALARM\r\n";  
-ics += "END:VEVENT\r\n";  
-ics += "END:VCALENDAR";  
-const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });  
-const url = URL.createObjectURL(blob);  
-const a = document.createElement('a');  
-a.href = url;  
-a.download = 'finance_reminders.ics';  
-a.click();  
-}  
-function exportCSV() {  
-let csv = '\uFEFFДата;Тип;Категория/Кредит;Получатель;Общая сумма;Основной долг;Проценты;Комментарий\n';  
-state.ops.forEach(o => {  
-csv += ${o.date};${o.type};${o.category || o.creditName};${o.recipient || ''};${o.amount};${o.principal};${o.interest};${o.note || ''}\n;  
-});  
-const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });  
-const url = URL.createObjectURL(blob);  
-const a = document.createElement('a');  
-a.href = url;  
-a.download = 'finance_backup_' + new Date().toISOString().slice(0,10) + '.csv';  
-a.click();  
-}  
-function resetAll() {  
-if (confirm('Внимание! Все внесенные операции будут удалены, а остатки кредитов вернутся к стартовым (539 518 ₽). Продолжить?')) {  
-localStorage.removeItem('fin_pwa_v2');  
-location.reload();  
-}  
-}  
-renderAll();  
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Финансы">
+<title>Семейные финансы</title>
+<style>
+  :root { --bg:#F2F2F7; --card:#FFF; --text:#1C1C1E; --muted:#8E8E93; --blue:#007AFF; --green:#34C759; --red:#FF3B30; --orange:#FF9500; --border:#E5E5EA; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif; }
+  body { margin:0; background:var(--bg); color:var(--text); padding-bottom:calc(85px + env(safe-area-inset-bottom)); }
+  header { background:rgba(255,255,255,0.9); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); position:sticky; top:0; z-index:100; padding:calc(12px + env(safe-area-inset-top)) 16px 12px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:20px; font-weight:700; }
+  .month-badge { background:#E5F1FF; color:var(--blue); padding:4px 10px; border-radius:12px; font-size:13px; font-weight:600; }
+  .container { padding:14px 16px; max-width:600px; margin:0 auto; }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+  .alert-banner { border-radius:14px; padding:12px 14px; margin-bottom:12px; display:flex; align-items:flex-start; gap:10px; font-size:13px; line-height:1.4; }
+  .alert-red { background:#FFEBEE; border:1px solid #FFCDD2; color:#B71C1C; }
+  .alert-orange { background:#FFF3E0; border:1px solid #FFE0B2; color:#E65100; }
+  .alert-blue { background:#E5F1FF; border:1px solid #B8DAFF; color:#004085; }
+  .alert-green { background:#E3F9E8; border:1px solid #C8E6C9; color:#1B5E20; }
+  .card { background:var(--card); border-radius:14px; padding:14px 16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04); }
+  .card-title { font-size:12px; font-weight:700; color:var(--muted); text-transform:uppercase; margin-bottom:10px; }
+  .hero-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+  .hero-box { background:var(--card); border-radius:14px; padding:12px 14px; }
+  .hero-label { font-size:12px; color:var(--muted); margin-bottom:4px; }
+  .hero-val { font-size:18px; font-weight:700; }
+  .val-red { color:var(--red); } .val-green { color:var(--green); }
+  .row-item { display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+  .row-item:last-child { border-bottom:none; padding-bottom:0; }
+  .row-item:first-child { padding-top:0; }
+  .item-main { font-size:15px; font-weight:600; }
+  .item-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+  .item-right { text-align:right; }
+  .badge { display:inline-block; padding:3px 8px; border-radius:8px; font-size:11px; font-weight:600; margin-top:3px; }
+  .b-green { background:#E3F9E8; color:#1E8E3E; } .b-orange { background:#FFF3E0; color:#E65100; } .b-red { background:#FFEBEE; color:#D32F2F; } .b-blue { background:#E5F1FF; color:var(--blue); }
+  .progress-bg { background:#E5E5EA; height:7px; border-radius:4px; overflow:hidden; margin-top:8px; }
+  .progress-fill { background:var(--green); height:100%; }
+  label { display:block; font-size:13px; font-weight:600; color:var(--muted); margin:10px 0 5px; }
+  input, select { width:100%; padding:11px 12px; border:1px solid var(--border); border-radius:10px; font-size:16px; background:#FAFAFC; color:var(--text); }
+  .two-cols { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .btn { width:100%; padding:14px; border:none; border-radius:12px; font-size:15px; font-weight:600; cursor:pointer; margin-top:10px; }
+  .btn:first-of-type { margin-top:0; }
+  .btn-primary { background:var(--blue); color:#FFF; }
+  .btn-green { background:var(--green); color:#FFF; }
+  .btn-orange { background:var(--orange); color:#FFF; }
+  .btn-secondary { background:#E5E5EA; color:var(--text); }
+  .btn-danger { background:#FFEBEE; color:var(--red); }
+  .fab { position:fixed; right:18px; bottom:calc(76px + env(safe-area-inset-bottom)); width:54px; height:54px; border-radius:27px; background:var(--blue); color:#FFF; font-size:28px; border:none; box-shadow:0 4px 12px rgba(0,122,255,0.4); z-index:90; }
+  nav { position:fixed; bottom:0; left:0; right:0; background:rgba(255,255,255,0.95); border-top:1px solid var(--border); display:flex; padding:8px 0 calc(8px + env(safe-area-inset-bottom)); z-index:100; }
+  .nav-btn { background:none; border:none; color:var(--muted); font-size:11px; display:flex; flex-direction:column; align-items:center; gap:3px; flex:1; }
+  .nav-btn.active { color:var(--blue); font-weight:600; }
+  .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; align-items:flex-end; }
+  .modal.open { display:flex; }
+  .modal-sheet { background:var(--card); width:100%; border-radius:20px 20px 0 0; padding:18px 16px calc(24px + env(safe-area-inset-bottom)); max-height:90vh; overflow-y:auto; }
+  .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+  .close-btn { background:#E5E5EA; border:none; width:28px; height:28px; border-radius:14px; font-weight:bold; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="pageTitle">Календарь</h1>
+  <span class="month-badge" id="currentMonthBadge">Ноябрь 2026</span>
+</header>
+
+<div class="container">
+  <div id="tab-calendar" class="tab-content active">
+    <div id="reminderBanner"></div>
+    <div class="hero-grid">
+      <div class="hero-box"><div class="hero-label">Общий долг (5 кредитов)</div><div class="hero-val val-red" id="heroTotalDebt">539 518 ₽</div></div>
+      <div class="hero-box"><div class="hero-label">Баланс за месяц</div><div class="hero-val val-green" id="heroMonthBalance">0 ₽</div></div>
+    </div>
+    <div class="card"><div class="card-title">1. Ожидаемые поступления</div><div id="incomeChecklist"></div></div>
+    <div class="card"><div class="card-title">2. Дети: проезд и карманные (4 нед.)</div><div id="kidsChecklist"></div></div>
+    <div class="card"><div class="card-title">3. Кредиты и досрочка</div><div id="creditsChecklist"></div></div>
+  </div>
+
+  <div id="tab-ops" class="tab-content">
+    <div class="card"><div class="card-title">История операций за месяц</div><div id="opsList"></div></div>
+  </div>
+
+  <div id="tab-credits" class="tab-content">
+    <div class="card" style="background:#E5F1FF;"><div style="font-size:13px; color:#004085;"><b>Метод «Лавина»:</b> обязательные <b>17 265,65 ₽</b> + досрочно <b>5 000 ₽/мес</b>. Все свободные деньги идут в <b>Цель №1</b>. Финал: <b>Сентябрь 2029</b>.</div></div>
+    <div id="creditsDetailList"></div>
+  </div>
+
+  <div id="tab-summary" class="tab-content">
+    <div class="card"><div class="card-title">Сводка по категориям за месяц</div><div id="categorySummary"></div></div>
+    <div class="card">
+      <div class="card-title">Настройки и напоминания</div>
+      <button class="btn btn-orange" onclick="openRemindersModal()">⏰ Настроить дни и время напоминаний</button>
+      <button class="btn btn-green" onclick="downloadRemindersICS()">🔔 Добавить в Календарь iPhone</button>
+      <button class="btn btn-primary" onclick="exportCSV()">📥 Скачать базу для Excel (.csv)</button>
+      <button class="btn btn-secondary" onclick="editPlans()">⚙️ Изменить суммы планов</button>
+      <button class="btn btn-danger" onclick="resetAll()">🗑 Сбросить все данные</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab" onclick="openModal()">+</button>
+
+<nav>
+  <button class="nav-btn active" onclick="switchTab('calendar','Календарь',this)"><span style="font-size:20px;">📅</span><span>Календарь</span></button>
+  <button class="nav-btn" onclick="switchTab('ops','Операции',this)"><span style="font-size:20px;">📝</span><span>Операции</span></button>
+  <button class="nav-btn" onclick="switchTab('credits','5 Кредитов',this)"><span style="font-size:20px;">🏦</span><span>Кредиты</span></button>
+  <button class="nav-btn" onclick="switchTab('summary','Итоги',this)"><span style="font-size:20px;">📊</span><span>Итоги</span></button>
+</nav>
+
+<div class="modal" id="opModal">
+  <div class="modal-sheet">
+    <div class="modal-header"><h2 style="margin:0;font-size:18px;">Новая операция</h2><button class="close-btn" onclick="closeModal()">✕</button></div>
+    <label>Тип операции</label>
+    <select id="opType" onchange="toggleCreditFields()">
+      <option value="Расход">Расход</option>
+      <option value="Доход">Доход</option>
+      <option value="Кредитный платеж">Кредитный платеж</option>
+      <option value="Досрочное погашение">Досрочное погашение</option>
+    </select>
+    <label>Дата</label>
+    <input type="date" id="opDate">
+    <div id="categoryBlock">
+      <label>Категория</label>
+      <select id="opCategory" onchange="toggleRecipientField()">
+        <option value="Продукты">Продукты</option>
+        <option value="Дети: проезд и карманные">Дети: проезд и карманные</option>
+        <option value="Питание собаки">Питание собаки</option>
+        <option value="ЖКХ и связь">ЖКХ и связь</option>
+        <option value="Транспорт">Транспорт</option>
+        <option value="Здоровье и аптеки">Здоровье и аптеки</option>
+        <option value="Одежда и быт">Одежда и быт</option>
+        <option value="Прочие расходы">Прочие расходы</option>
+        <option value="Зарплата">Зарплата (Доход)</option>
+        <option value="Алименты">Алименты (Доход)</option>
+        <option value="Детские пособия">Детские пособия (Доход)</option>
+      </select>
+    </div>
+    <div id="recipientBlock" style="display:none;">
+      <label>Кому перевод</label>
+      <select id="opChild">
+Дети (Ребенок 1)
+Дети (Ребенок 2)
+Дети (Ребенок 3)
+
+
+Кредит
+Сумма (₽)
+Основной долг (₽)
+Проценты (₽)
+Комментарий
+Сохранить
+
+Настройка напоминаний✕
+
+День досрочки (1-31)
+Время уведомлений
+День недели переводов детям
+Воскресенье
+Понедельник
+Вторник
+Среда
+Четверг
+Пятница
+Суббота
+
+
+Сохранить расписание
+
+const INITIAL_CREDITS = [
+{ id:'c1', name:'Сбербанк (29.06.2026)', rate:30.5, day:29, payment:718.36, startDebt:11123 },
+{ id:'c2', name:'СБЕРБАНК (11.11.2026)', rate:29.887, day:11, payment:3229.20, startDebt:50000 },
+{ id:'c3', name:'Сбербанк (05.03.2026)', rate:28.9, day:5, payment:7618.90, startDebt:235108 },
+{ id:'c4', name:'СБЕРБАНК (06.06.2026)', rate:25.4, day:6, payment:4881.74, startDebt:157858 },
+{ id:'c5', name:'ПСБ_ипотека (20.01.2020)', rate:10.4, day:20, payment:817.45, startDebt:85429 }
+];
+const DEFAULT_PLANS = { alimony:20000, alimonyDay:15, benefits:15000, benefitsDay:3, kid1:3000, kid2:3000, kid3:3000, extraCredit:5000, extraDay:29, kidsWeekday:0, notifyTime:'10:00' };
+let state = JSON.parse(localStorage.getItem('fin_pwa_v3')) || { credits:INITIAL_CREDITS, plans:DEFAULT_PLANS, ops:[] };
+function saveState() { localStorage.setItem('fin_pwa_v3', JSON.stringify(state)); renderAll(); }
+function fmt(n) { return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(n) + ' ₽'; }
+function renderAll() {
+const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const now = new Date();
+document.getElementById('currentMonthBadge').textContent = months[now.getMonth()] + ' ' + now.getFullYear();
+const curMonth = now.toISOString().slice(0,7);
+const monthOps = state.ops.filter(o => o.date.startsWith(curMonth));
+let totalDebt = 0;
+const computedCredits = state.credits.map(c => {
+const paidP = state.ops.filter(o => o.creditId === c.id && (o.type==='Кредитный платеж'||o.type==='Досрочное погашение')).reduce((s,o)=>s+Number(o.principal||0),0);
+const paidI = state.ops.filter(o => o.creditId === c.id).reduce((s,o)=>s+Number(o.interest||0),0);
+const rem = Math.max(0, c.startDebt - paidP);
+totalDebt += rem;
+return { ...c, paidP, paidI, rem };
+}).sort((a,b) => (a.rem===0?1:b.rem===0?-1:b.rate-a.rate));
+// Баннер напоминаний
+const todayDay = now.getDate(), todayDow = now.getDay();
+let overdue = [], urgent = [], upcoming = [];
+computedCredits.forEach(c => {
+if (c.rem <= 0) return;
+const paidM = monthOps.filter(o => o.creditId===c.id && o.type==='Кредитный платеж').reduce((s,o)=>s+Number(o.amount),0);
+if (paidM >= c.payment - 1) return;
+const diff = c.day - todayDay;
+if (diff < 0) overdue.push(c.name + ' (' + c.day + '-го — ' + fmt(c.payment) + ')');
+else if (diff <= 3) urgent.push(c.name + ' (' + (diff===0?'СЕГОДНЯ':'через '+diff+' дн.') + ' — ' + fmt(c.payment) + ')');
+else upcoming.push({ name:c.name, day:c.day, diff:diff, payment:c.payment });
+});
+const extraFact = monthOps.filter(o => o.type==='Досрочное погашение').reduce((s,o)=>s+Number(o.amount),0);
+if (extraFact < state.plans.extraCredit) {
+const diffEx = (state.plans.extraDay||29) - todayDay;
+if (diffEx >= 0 && diffEx <= 3) urgent.push('Досрочка (' + (diffEx===0?'СЕГОДНЯ':'через '+diffEx+' дн.') + ' — ' + fmt(state.plans.extraCredit - extraFact) + ')');
+}
+const wdays = ['воскресенье','понедельник','вторник','среду','четверг','пятницу','субботу'];
+const kNote = (todayDow === Number(state.plans.kidsWeekday)) ? '
+👦👧👦 Сегодня день перевода детям!' : '';
+const bEl = document.getElementById('reminderBanner');
+if (overdue.length) bEl.innerHTML = '🚨 Прошла дата платежа:
+' + overdue.join('
+') + kNote + '';
+else if (urgent.length) bEl.innerHTML = '⏰ Напоминание:
+' + urgent.join('
+') + kNote + '';
+else if (upcoming.length) {
+upcoming.sort((a,b)=>a.diff-b.diff);
+bEl.innerHTML = '🔔 Ближайший платеж: ' + upcoming[0].name + ' — ' + upcoming[0].day + '-го числа (' + fmt(upcoming[0].payment) + ')' + kNote + '';
+} else bEl.innerHTML = '✅ Все кредиты оплачены! Перевод детям в ' + wdays[state.plans.kidsWeekday] + '.' + kNote + '';
+document.getElementById('heroTotalDebt').textContent = fmt(totalDebt);
+const mIn = monthOps.filter(o=>o.type==='Доход').reduce((s,o)=>s+Number(o.amount),0);
+const mOut = monthOps.filter(o=>o.type!=='Доход').reduce((s,o)=>s+Number(o.amount),0);
+const balEl = document.getElementById('heroMonthBalance');
+balEl.textContent = fmt(mIn - mOut);
+balEl.className = 'hero-val ' + (mIn - mOut >= 0 ? 'val-green' : 'val-red');
+const benF = monthOps.filter(o=>o.category==='Детские пособия').reduce((s,o)=>s+Number(o.amount),0);
+const aliF = monthOps.filter(o=>o.category==='Алименты').reduce((s,o)=>s+Number(o.amount),0);
+document.getElementById('incomeChecklist').innerHTML =
+'Детские пособия'+state.plans.benefitsDay+'-е число • План '+fmt(state.plans.benefits)+''+fmt(benF)+''+(benF>=state.plans.benefits?'Поступили':'Ожидаются')+'' +
+'Алименты'+state.plans.alimonyDay+'-е число • План '+fmt(state.plans.alimony)+''+fmt(aliF)+''+(aliF>=state.plans.alimony?'Поступили':'Ожидаются')+'';
+const kids = [{n:'Дети (Ребенок 1)',p:state.plans.kid1},{n:'Дети (Ребенок 2)',p:state.plans.kid2},{n:'Дети (Ребенок 3)',p:state.plans.kid3}];
+document.getElementById('kidsChecklist').innerHTML = kids.map(k => {
+const f = monthOps.filter(o=>o.category==='Дети: проезд и карманные'&&o.recipient===k.n).reduce((s,o)=>s+Number(o.amount),0);
+const w = Math.min(4, Math.floor(f / (k.p/4 || 1)));
+return ''+k.n+'План: '+fmt(k.p)+'/мес.'+fmt(f)+''+(f>=k.p?'4 из 4 нед.':w+' из 4 нед.')+'';
+}).join('');
+let cHtml = computedCredits.map(c => {
+const pm = monthOps.filter(o=>o.creditId===c.id&&o.type==='Кредитный платеж').reduce((s,o)=>s+Number(o.amount),0);
+const ok = pm >= c.payment - 1 || c.rem === 0;
+return ''+c.name+''+c.day+'-е число • План '+fmt(c.payment)+''+fmt(pm)+''+(c.rem===0?'Закрыт':ok?'Оплачено':'К оплате')+'';
+}).join('');
+cHtml += 'Досрочное погашение'+(state.plans.extraDay||29)+'-е число • План '+fmt(state.plans.extraCredit)+''+fmt(extraFact)+''+(extraFact>=state.plans.extraCredit?'Выполнено':'Осталось '+fmt(state.plans.extraCredit-extraFact))+'';
+document.getElementById('creditsChecklist').innerHTML = cHtml;
+let rank = 1;
+document.getElementById('creditsDetailList').innerHTML = computedCredits.map(c => {
+const pct = Math.min(100, Math.round((c.paidP / c.startDebt)*100));
+const rb = c.rem===0 ? 'ЗАКРЫТ' : ''+(rank===1?'🔥 ЦЕЛЬ №1':'Очередь #'+rank)+'';
+if (c.rem > 0) rank++;
+return ''+c.name+''+rb+'Ставка: '+c.rate+'% • Платеж: '+fmt(c.payment)+' ('+c.day+'-го)Остаток'+fmt(c.rem)+'Уплачено %'+fmt(c.paidI)+'';
+}).join('');
+const revOps = [...monthOps].reverse();
+document.getElementById('opsList').innerHTML = revOps.length===0 ? 'Нажмите «+» внизу, чтобы добавить первую запись.' : revOps.map(o => ''+(o.category||o.type)+''+o.date.split('-').reverse().join('.')+(o.recipient?' • '+o.recipient:'')+(o.creditName?' • '+o.creditName:'')+(o.note?' • '+o.note:'')+''+(o.type==='Доход'?'+':'-')+fmt(o.amount)+'удалить').join('');
+const cats = ['Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы'];
+const cTot = monthOps.filter(o=>o.type==='Кредитный платеж'||o.type==='Досрочное погашение').reduce((s,o)=>s+Number(o.amount),0);
+document.getElementById('categorySummary').innerHTML = cats.map(cat => ''+cat+''+fmt(monthOps.filter(o=>o.category===cat).reduce((s,o)=>s+Number(o.amount),0))+'').join('') + 'Кредиты (все платежи)'+fmt(cTot)+'';
+document.getElementById('opCredit').innerHTML = state.credits.map(c => ''+c.name+'').join('');
+}
+function switchTab(id, title, btn) {
+document.querySelectorAll('.tab-content').forEach(e=>e.classList.remove('active'));
+document.querySelectorAll('.nav-btn').forEach(e=>e.classList.remove('active'));
+document.getElementById('tab-'+id).classList.add('active');
+btn.classList.add('active');
+document.getElementById('pageTitle').textContent = title;
+}
+function openModal() {
+document.getElementById('opDate').value = new Date().toISOString().slice(0,10);
+document.getElementById('opAmount').value = '';
+document.getElementById('opPrincipal').value = '';
+document.getElementById('opInterest').value = '';
+document.getElementById('opNote').value = '';
+toggleCreditFields();
+document.getElementById('opModal').classList.add('open');
+}
+function closeModal() { document.getElementById('opModal').classList.remove('open'); }
+function toggleCreditFields() {
+const t = document.getElementById('opType').value;
+const isC = (t==='Кредитный платеж'||t==='Досрочное погашение');
+document.getElementById('categoryBlock').style.display = isC?'none':'block';
+document.getElementById('creditSelectBlock').style.display = isC?'block':'none';
+document.getElementById('normalAmountBlock').style.display = isC?'none':'block';
+document.getElementById('creditSplitBlock').style.display = isC?'grid':'none';
+if (isC) document.getElementById('recipientBlock').style.display = 'none';
+else toggleRecipientField();
+}
+function toggleRecipientField() {
+document.getElementById('recipientBlock').style.display = (document.getElementById('opCategory').value==='Дети: проезд и карманные')?'block':'none';
+}
+function saveOperation() {
+const type = document.getElementById('opType').value;
+const date = document.getElementById('opDate').value;
+const note = document.getElementById('opNote').value.trim();
+const isC = (type==='Кредитный платеж'||type==='Досрочное погашение');
+if (!date) return alert('Укажите дату');
+if (isC) {
+const creditId = document.getElementById('opCredit').value;
+const cObj = state.credits.find(c=>c.id===creditId);
+const p = Number(document.getElementById('opPrincipal').value||0);
+const intr = Number(document.getElementById('opInterest').value||0);
+if (p+intr<=0) return alert('Укажите сумму');
+state.ops.push({ id:Date.now().toString(), date, type, creditId, creditName:cObj.name, amount:p+intr, principal:p, interest:intr, note });
+} else {
+const category = document.getElementById('opCategory').value;
+const amount = Number(document.getElementById('opAmount').value||0);
+const recipient = (category==='Дети: проезд и карманные') ? document.getElementById('opChild').value : '';
+const rType = (['Зарплата','Алименты','Детские пособия'].includes(category)) ? 'Доход' : 'Расход';
+if (amount<=0) return alert('Укажите сумму');
+state.ops.push({ id:Date.now().toString(), date, type:rType, category, recipient, amount, principal:0, interest:0, note });
+}
+saveState(); closeModal();
+}
+function deleteOp(id) { if (confirm('Удалить запись?')) { state.ops = state.ops.filter(o=>o.id!==id); saveState(); } }
+function openRemindersModal() {
+document.getElementById('remExtraDay').value = state.plans.extraDay || 29;
+document.getElementById('remTime').value = state.plans.notifyTime || '10:00';
+document.getElementById('remKidsWeekday').value = state.plans.kidsWeekday ?? 0;
+document.getElementById('creditDaysInputs').innerHTML = state.credits.map(c => ''+c.name+' — день списания').join('');
+document.getElementById('remModal').classList.add('open');
+}
+function closeRemindersModal() { document.getElementById('remModal').classList.remove('open'); }
+function saveRemindersSettings() {
+state.plans.extraDay = Number(document.getElementById('remExtraDay').value)||29;
+state.plans.notifyTime = document.getElementById('remTime').value||'10:00';
+state.plans.kidsWeekday = Number(document.getElementById('remKidsWeekday').value);
+state.credits.forEach(c => { const v = Number(document.getElementById('cd_'+c.id).value); if(v>=1&&v<=31) c.day=v; });
+saveState(); closeRemindersModal();
+}
+function editPlans() {
+const ali = prompt('План по алиментам (₽):', state.plans.alimony); if (ali===null) return;
+const ben = prompt('План по пособиям (₽):', state.plans.benefits); if (ben===null) return;
+const k1 = prompt('План на Ребенка 1 (₽):', state.plans.kid1);
+const k2 = prompt('План на Ребенка 2 (₽):', state.plans.kid2);
+const k3 = prompt('План на Ребенка 3 (₽):', state.plans.kid3);
+state.plans.alimony = Number(ali)||0; state.plans.benefits = Number(ben)||0;
+if(k1!==null) state.plans.kid1 = Number(k1)||0;
+if(k2!==null) state.plans.kid2 = Number(k2)||0;
+if(k3!==null) state.plans.kid3 = Number(k3)||0;
+saveState();
+}
+function downloadRemindersICS() {
+const now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
+const [hh, mm] = (state.plans.notifyTime||'10:00').split(':');
+const tStr = hh + mm + '00';
+const days = ['SU','MO','TU','WE','TH','FR','SA'];
+let lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//FinPWA//RU'];
+state.credits.forEach(c => {
+const d = String(c.day).padStart(2,'0');
+lines.push('BEGIN:VEVENT','UID:cr-'+c.id+'@fin','DTSTART:'+y+m+d+'T'+tStr,'RRULE:FREQ=MONTHLY;BYMONTHDAY='+c.day,'SUMMARY:Кредит: '+c.name+' ('+c.payment+' руб.)','BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Оплата кредита','END:VALARM','END:VEVENT');
+});
+const ed = String(state.plans.extraDay||29).padStart(2,'0');
+lines.push('BEGIN:VEVENT','UID:ex-cr@fin','DTSTART:'+y+m+ed+'T'+tStr,'RRULE:FREQ=MONTHLY;BYMONTHDAY='+(state.plans.extraDay||29),'SUMMARY:Досрочное погашение ('+state.plans.extraCredit+' руб.)','BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Досрочка','END:VALARM','END:VEVENT');
+lines.push('BEGIN:VEVENT','UID:kids-wk@fin','DTSTART:'+y+m+String(now.getDate()).padStart(2,'0')+'T'+tStr,'RRULE:FREQ=WEEKLY;BYDAY='+days[state.plans.kidsWeekday??0],'SUMMARY:Перевод детям на проезд и карманные','BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:Перевод детям','END:VALARM','END:VEVENT');
+lines.push('END:VCALENDAR');
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([lines.join('\r\n')], {type:'text/calendar;charset=utf-8'}));
+a.download = 'reminders.ics';
+a.click();
+}
+function exportCSV() {
+let rows = ['\uFEFFДата;Тип;Категория/Кредит;Получатель;Сумма;Основной долг;Проценты;Комментарий'];
+state.ops.forEach(o => rows.push([o.date, o.type, o.category||o.creditName, o.recipient||'', o.amount, o.principal, o.interest, o.note||''].join(';')));
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'}));
+a.download = 'finance_backup.csv';
+a.click();
+}
+function resetAll() {
+if (confirm('Удалить все операции и вернуть стартовый долг 539 518 ₽?')) { localStorage.removeItem('fin_pwa_v3'); location.reload(); }
+}
+renderAll();
