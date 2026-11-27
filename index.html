@@ -54,8 +54,9 @@
     <div class="card"><div class="ctitle">3. Кредиты и досрочка</div><div id="crdList"></div></div>
   </div>
   <div id="tab-ops" class="tab"><div class="card"><div class="ctitle">Операции за месяц</div><div id="opsList"></div></div></div>
-  <div id="tab-crd" class="tab"><div id="crdDet"></div></div>
+  <div id="tab-crd" class="tab"><div class="card"><div class="ctitle">График погашения общего долга (Лавина)</div><div id="debtChart"></div></div><div id="crdDet"></div></div>
   <div id="tab-sum" class="tab">
+    <div class="card"><div class="ctitle">Структура расходов за месяц</div><div id="expChart"></div></div>
     <div class="card"><div class="ctitle">Сводка по категориям</div><div id="catSum"></div></div>
     <div class="card">
       <div class="ctitle">Управление</div>
@@ -111,6 +112,14 @@
   </div>
   <label>Комментарий</label><input type="text" id="oNot">
   <button type="button" class="btn" style="background:var(--blue);" onclick="saveOp()">Сохранить</button>
+</div></div>
+
+<div class="modal" id="infoMod"><div class="sheet">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+    <b id="infTitle" style="font-size:17px;">Детали кредита</b>
+    <button type="button" onclick="closeInfo()">X</button>
+  </div>
+  <div id="infBody"></div>
 </div></div>
 
 <div class="modal" id="remMod"><div class="sheet">
@@ -279,11 +288,12 @@ function draw() {
     return '<div class="row"><div><b>' + x.name + '</b><br><small>' + x.day + '-го • План ' + f(x.pay) + '</small></div><div><b>' + f(x.pm) + '</b></div></div>';
   }).join('') + '<div class="row"><div><b>Досрочное погашение</b><br><small>' + st.p.exD + '-го • План ' + f(st.p.ex) + '</small></div><div><b>' + f(exF) + '</b></div></div>';
 
-  document.getElementById('crdDet').innerHTML = list.map(function(x, idx){
+    document.getElementById('crdDet').innerHTML = list.map(function(x, idx){
     var pct = Math.min(100, Math.round((x.pp / x.debt) * 100));
-    return '<div class="card"><div style="display:flex;justify-content:space-between;"><b>' + x.name + '</b><span class="tag ' + (idx===0?'t-r':'t-b') + '">' + (idx===0?'ЦЕЛЬ №1':'#'+(idx+1)) + '</span></div><small>Ставка ' + x.rate + '% • Платеж ' + f(x.pay) + '</small><div style="margin-top:8px;">Остаток: <b>' + f(x.rem) + '</b> | Проценты: ' + f(x.pi) + '</div><div class="pbar"><div class="pfill" style="width:' + pct + '%"></div></div></div>';
+    var btnI = '<button type="button" data-cid="' + x.id + '" onclick="openInfo(this.dataset.cid)" style="background:#007AFF;color:#FFF;border:none;width:24px;height:24px;border-radius:12px;font-weight:bold;margin-left:6px;cursor:pointer;">i</button>';
+    return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;"><div><b>' + x.name + '</b>' + btnI + '</div><span class="tag ' + (idx===0?'t-r':'t-b') + '">' + (idx===0?'ЦЕЛЬ №1':'#'+(idx+1)) + '</span></div><small>Ставка ' + x.rate + '% • Платеж ' + f(x.pay) + ' (' + x.day + '-го числа)</small><div style="margin-top:8px;">Остаток: <b>' + f(x.rem) + '</b> | Проценты: ' + f(x.pi) + '</div><div class="pbar"><div class="pfill" style="width:' + pct + '%"></div></div></div>';
   }).join('');
-  document.getElementById('opsList').innerHTML = mOps.slice().reverse().map(function(x){
+    document.getElementById('opsList').innerHTML = mOps.slice().sort(function(a, b){ return a.d.localeCompare(b.d); }).map(function(x){
     return '<div class="row"><div><b>' + (x.cat || x.t) + '</b><br><small>' + x.d + ' ' + (x.rec||x.cn||'') + ' ' + (x.n||'') + '</small></div><div><b>' + f(x.a) + '</b> <button type="button" data-id="' + x.id + '" onclick="delOp(this.dataset.id)">X</button></div></div>';
   }).join('') || '<small>Нет операций</small>';
 
@@ -293,6 +303,137 @@ function draw() {
     return '<div class="row"><span>' + c + '</span><b>' + f(s) + '</b></div>';
   }).join('');
   document.getElementById('oCrd').innerHTML = st.c.map(function(x){ return '<option value="' + x.id + '">' + x.name + '</option>'; }).join('');
+}
+function openInfo(cid) {
+  var c = st.c.find(function(x){ return x.id === cid; });
+  if (!c) return;
+  var activeList = st.c.map(function(x){
+    var pp = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.pr; }, 0);
+    return { id:x.id, rate:x.rate, rem:Math.max(0, x.debt - pp) };
+  }).filter(function(x){ return x.rem > 0; }).sort(function(a,b){ return b.rate - a.rate; });
+
+  var isTop = (activeList.length > 0 && activeList.at(0).id === cid);
+  var paidP = st.ops.filter(function(o){ return o.cid === cid; }).reduce(function(s,o){ return s + o.pr; }, 0);
+  var paidI = st.ops.filter(function(o){ return o.cid === cid; }).reduce(function(s,o){ return s + o.inr; }, 0);
+  var rem = Math.max(0, c.debt - paidP);
+
+  document.getElementById('infTitle').textContent = c.name;
+
+  var html = '<div style="background:#F2F2F7;padding:12px;border-radius:12px;font-size:13px;line-height:1.6;margin-bottom:12px;">';
+  html += '<div><b>Ставка:</b> ' + c.rate + '% годовых</div>';
+  html += '<div><b>Дата списания:</b> ' + c.day + '-е число каждого месяца</div>';
+  html += '<div><b>Обязательный платеж:</b> ' + f(c.pay) + '</div>';
+  html += '<div><b>Стартовый долг:</b> ' + f(c.debt) + '</div>';
+  html += '<div><b>Остаток долга:</b> <span style="color:#FF3B30;font-weight:700;">' + f(rem) + '</span></div>';
+  html += '<div><b>Уже погашено тела / %:</b> ' + f(paidP) + ' / ' + f(paidI) + '</div>';
+  if (isTop) html += '<div style="color:#1E8E3E;font-weight:600;margin-top:4px;">🔥 Активна досрочка +' + f(st.p.ex) + '/мес (Цель №1)</div>';
+  html += '</div>';
+
+  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;text-transform:uppercase;margin-bottom:8px;">Прогнозный график платежей</div>';
+  html += '<div style="max-height:260px;overflow-y:auto;border:1px solid #E5E5EA;border-radius:10px;padding:0 10px;">';
+
+  var simDebt = rem;
+  var mRate = (c.rate / 100) / 12;
+  var months = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек');
+  var now = new Date();
+  var step = 0;
+
+  if (simDebt <= 0) {
+    html += '<div style="padding:12px 0;color:#1E8E3E;font-weight:600;">Кредит полностью закрыт!</div>';
+  } else {
+    while (simDebt > 0.5 && step < 120) {
+      step++;
+      var dObj = new Date(now.getFullYear(), now.getMonth() + step, 1);
+      var mLabel = months.at(dObj.getMonth()) + ' ' + dObj.getFullYear();
+      var intr = simDebt * mRate;
+      var extra = isTop ? st.p.ex : 0;
+      var totalPay = c.pay + extra;
+      var bodyPay = totalPay - intr;
+      if (bodyPay > simDebt) {
+        bodyPay = simDebt;
+        totalPay = bodyPay + intr;
+      }
+      simDebt = Math.max(0, simDebt - bodyPay);
+      html += '<div class="row" style="font-size:12px;">';
+      html += '<div><b>' + mLabel + '</b> (' + c.day + '-го)<br><small style="color:#8E8E93;">Долг: ' + f(bodyPay) + ' • %: ' + f(intr) + '</small></div>';
+      html += '<div style="text-align:right;"><b>' + f(totalPay) + '</b><br><small style="color:#8E8E93;">Ост: ' + f(simDebt) + '</small></div>';
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  var hist = st.ops.filter(function(o){ return o.cid === cid; }).slice().reverse();
+  if (hist.length > 0) {
+    html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;text-transform:uppercase;margin:12px 0 6px;">Фактические платежи</div>';
+    html += hist.map(function(h){
+      return '<div class="row" style="font-size:12px;"><div>' + h.d + ' (' + h.t + ')</div><div><b>' + f(h.a) + '</b></div></div>';
+    }).join('');
+  }
+
+  document.getElementById('infBody').innerHTML = html;
+  document.getElementById('infoMod').classList.add('open');
+}
+
+function closeInfo() {
+  document.getElementById('infoMod').classList.remove('open');
+  var colors = Array.of('#007AFF','#34C759','#FF9500','#FF3B30','#AF52DE','#5856D6','#FF2D55','#00C7BE','#A2845E','#8E8E93');
+  var expItems = Array.of();
+  cats.forEach(function(c) {
+    if (c === 'Зарплата' || c === 'Алименты' || c === 'Детские пособия') return;
+    var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
+    if (s > 0) expItems.push({ name:c, val:s });
+  });
+  var crdMonth = mOps.filter(function(x){ return x.t === 'Кредитный платеж' || x.t === 'Досрочное погашение'; }).reduce(function(a,b){ return a + b.a; }, 0);
+  if (crdMonth > 0) expItems.push({ name:'Кредиты и досрочка', val:crdMonth });
+  expItems.sort(function(a,b){ return b.val - a.val; });
+
+  var totExp = expItems.reduce(function(a,b){ return a + b.val; }, 0);
+  if (totExp === 0) {
+    document.getElementById('expChart').innerHTML = '<small style="color:#8E8E93;">Добавьте первый расход или платеж по кредиту, чтобы увидеть диаграмму.</small>';
+  } else {
+    document.getElementById('expChart').innerHTML = expItems.map(function(item, i) {
+      var pct = Math.round((item.val / totExp) * 100);
+      var col = colors.at(i % colors.length);
+      return '<div style="margin-bottom:10px;"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px;"><span>' + item.name + '</span><b>' + f(item.val) + ' (' + pct + '%)</b></div><div style="background:#E5E5EA;height:8px;border-radius:4px;overflow:hidden;"><div style="background:' + col + ';width:' + pct + '%;height:100%;"></div></div></div>';
+    }).join('');
+  }
+  var simList = list.map(function(x){ return { rate:x.rate, pay:x.pay, rem:x.rem }; });
+  var mNames = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек');
+  var pts = Array.of({ label:'Сейчас', val:tot });
+  var stepM = 0;
+  while (stepM < 42) {
+    stepM++;
+    var activeSim = simList.filter(function(s){ return s.rem > 0.1; }).sort(function(a,b){ return b.rate - a.rate; });
+    if (activeSim.length === 0) break;
+    var extraPool = st.p.ex;
+    simList.forEach(function(s) {
+      if (s.rem <= 0) { extraPool += s.pay; return; }
+      var intr = s.rem * (s.rate / 100 / 12);
+      var body = Math.max(0, s.pay - intr);
+      if (body > s.rem) { extraPool += (body - s.rem); body = s.rem; }
+      s.rem = Math.max(0, s.rem - body);
+    });
+    activeSim.forEach(function(s) {
+      if (extraPool <= 0 || s.rem <= 0) return;
+      var take = Math.min(s.rem, extraPool);
+      s.rem = Math.max(0, s.rem - take);
+      extraPool -= take;
+    });
+    var remSum = simList.reduce(function(a,b){ return a + b.rem; }, 0);
+    if (stepM % 6 === 0 || remSum <= 0.5) {
+      var fd = new Date(now.getFullYear(), now.getMonth() + stepM, 1);
+      pts.push({ label:mNames.at(fd.getMonth()) + ' ' + String(fd.getFullYear()).slice(2), val:Math.round(remSum) });
+      if (remSum <= 0.5) break;
+    }
+  }
+  var maxD = Math.max(1, tot);
+  document.getElementById('debtChart').innerHTML = '<div style="display:flex;align-items:flex-end;justify-content:space-between;height:130px;padding-top:20px;gap:6px;">' +
+    pts.map(function(pt) {
+      var h = Math.max(6, Math.round((pt.val / maxD) * 95));
+      var kVal = pt.val >= 1000 ? Math.round(pt.val / 1000) + 'к' : pt.val + '₽';
+      var barCol = pt.val === 0 ? '#34C759' : '#007AFF';
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;"><div style="font-size:10px;font-weight:700;margin-bottom:4px;color:#1C1C1E;">' + kVal + '</div><div style="width:100%;max-width:34px;height:' + h + 'px;background:' + barCol + ';border-radius:6px 6px 2px 2px;"></div><div style="font-size:10px;color:#8E8E93;margin-top:5px;">' + pt.label + '</div></div>';
+    }).join('') + '</div>';
 }
 draw();
 </script>
