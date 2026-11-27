@@ -293,8 +293,11 @@ function draw() {
     var btnI = '<button type="button" data-cid="' + x.id + '" onclick="openInfo(this.dataset.cid)" style="background:#007AFF;color:#FFF;border:none;width:24px;height:24px;border-radius:12px;font-weight:bold;margin-left:6px;cursor:pointer;">i</button>';
     return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;"><div><b>' + x.name + '</b>' + btnI + '</div><span class="tag ' + (idx===0?'t-r':'t-b') + '">' + (idx===0?'ЦЕЛЬ №1':'#'+(idx+1)) + '</span></div><small>Ставка ' + x.rate + '% • Платеж ' + f(x.pay) + ' (' + x.day + '-го числа)</small><div style="margin-top:8px;">Остаток: <b>' + f(x.rem) + '</b> | Проценты: ' + f(x.pi) + '</div><div class="pbar"><div class="pfill" style="width:' + pct + '%"></div></div></div>';
   }).join('');
-    document.getElementById('opsList').innerHTML = mOps.slice().sort(function(a, b){ return a.d.localeCompare(b.d); }).map(function(x){
-    return '<div class="row"><div><b>' + (x.cat || x.t) + '</b><br><small>' + x.d + ' ' + (x.rec||x.cn||'') + ' ' + (x.n||'') + '</small></div><div><b>' + f(x.a) + '</b> <button type="button" data-id="' + x.id + '" onclick="delOp(this.dataset.id)">X</button></div></div>';
+      var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
+  document.getElementById('opsList').innerHTML = mOps.slice().sort(function(a, b){ return a.d.localeCompare(b.d); }).map(function(x){
+    var dp = x.d.split('-');
+    var ruDate = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : x.d;
+    return '<div class="row"><div><b>' + (x.cat || x.t) + '</b><br><small>' + ruDate + ' • ' + (x.rec||x.cn||'') + ' ' + (x.n||'') + '</small></div><div><b>' + f(x.a) + '</b> <button type="button" data-id="' + x.id + '" onclick="delOp(this.dataset.id)">X</button></div></div>';
   }).join('') || '<small>Нет операций</small>';
 
   var cats = ['Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы'];
@@ -362,11 +365,14 @@ function openInfo(cid) {
   }
   html += '</div>';
 
-  var hist = st.ops.filter(function(o){ return o.cid === cid; }).slice().reverse();
+    var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
+  var hist = st.ops.filter(function(o){ return o.cid === cid; }).slice().sort(function(a, b){ return a.d.localeCompare(b.d); });
   if (hist.length > 0) {
     html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;text-transform:uppercase;margin:12px 0 6px;">Фактические платежи</div>';
     html += hist.map(function(h){
-      return '<div class="row" style="font-size:12px;"><div>' + h.d + ' (' + h.t + ')</div><div><b>' + f(h.a) + '</b></div></div>';
+      var dp = h.d.split('-');
+      var ruDate = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : h.d;
+      return '<div class="row" style="font-size:12px;"><div><b>' + ruDate + '</b> (' + h.t + ')</div><div><b>' + f(h.a) + '</b></div></div>';
     }).join('');
   }
 
