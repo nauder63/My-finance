@@ -46,6 +46,7 @@
 <div class="box">
   <div id="tab-cal" class="tab active">
     <div id="remBanner"></div>
+    <div id="backupBanner"></div>
     <div class="grid2">
       <div class="card" style="margin:0;"><div style="font-size:12px;color:var(--muted);">Общий долг</div><div id="totDebt" style="font-size:18px;font-weight:700;color:var(--red);">539 518 ₽</div></div>
       <div class="card" style="margin:0;"><div style="font-size:12px;color:var(--muted);">Баланс месяца</div><div id="mBal" style="font-size:18px;font-weight:700;color:var(--green);">0 ₽</div></div>
@@ -54,11 +55,14 @@
     <div class="card"><div class="ctitle">2. Дети: Ярослав, Кирилл, Ростислав (4 нед.)</div><div id="kidList"></div></div>
     <div class="card"><div class="ctitle">3. Кредиты и досрочка</div><div id="crdList"></div></div>
   </div>
+
   <div id="tab-ops" class="tab"><div class="card"><div class="ctitle">Операции за месяц</div><div id="opsList"></div></div></div>
+
   <div id="tab-crd" class="tab">
     <div class="card"><div class="ctitle">График погашения общего долга (Лавина)</div><div id="debtChart"></div></div>
     <div id="crdDet"></div>
   </div>
+
   <div id="tab-sum" class="tab">
     <div class="card"><div class="ctitle">Структура расходов за месяц</div><div id="expChart"></div></div>
     <div class="card"><div class="ctitle">Сводка по категориям</div><div id="catSum"></div></div>
@@ -67,12 +71,17 @@
       <button type="button" class="btn" style="background:var(--orange);" onclick="openRem()">⏰ Дни и время напоминаний</button>
       <button type="button" class="btn" style="background:var(--green);" onclick="dlICS()">🔔 В Календарь iPhone</button>
       <button type="button" class="btn" style="background:var(--blue);" onclick="dlCSV()">📥 Скачать для Excel (.csv)</button>
+      <button type="button" class="btn" style="background:#5856D6;" onclick="downloadBackup()">💾 Скачать резервную копию</button>
+      <button type="button" class="btn" style="background:#8E8E93;" onclick="document.getElementById('backupFile').click()">📂 Восстановить из копии</button>
+      <input id="backupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(this)">
       <button type="button" class="btn" style="background:#8E8E93;" onclick="editPlans()">⚙️ Суммы планов (Ярослав, Кирилл, Ростислав)</button>
       <button type="button" class="btn" style="background:var(--red);" onclick="resetAll()">🗑 Сбросить данные</button>
     </div>
   </div>
 </div>
+
 <button type="button" class="fab" onclick="openOp()">+</button>
+
 <nav>
   <button type="button" class="nbtn active" onclick="goTab('cal','Календарь',this)">📅<br>Календарь</button>
   <button type="button" class="nbtn" onclick="goTab('ops','Операции',this)">📝<br>Операции</button>
@@ -142,6 +151,7 @@
   <div id="rCrdDays"></div>
   <button type="button" class="btn" style="background:var(--blue);" onclick="saveRem()">Сохранить</button>
 </div></div>
+
 <script>
 'use strict';
 
@@ -319,8 +329,7 @@ function editOp(id) {
 
   editId = String(id);
   document.getElementById('opModTitle').textContent = 'Редактировать операцию';
-  document.getElementById('oType').value =
-    op.t === 'Доход' || op.t === 'Расход' ? op.t : op.t;
+  document.getElementById('oType').value = op.t;
   document.getElementById('oDate').value = op.d;
 
   if (op.cid) {
@@ -534,10 +543,138 @@ function downloadFile(name, content, type) {
   var blob = new Blob([content], { type: type });
   var url = URL.createObjectURL(blob);
   var link = document.createElement('a');
+
   link.href = url;
   link.download = name;
+  document.body.appendChild(link);
   link.click();
-  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  link.remove();
+
+  setTimeout(function () {
+    URL.revokeObjectURL(url);
+  }, 1000);
+}
+
+function downloadBackup() {
+  var backup = {
+    format: 'fin-kids-backup',
+    version: 1,
+    createdAt: new Date().toISOString(),
+    data: st
+  };
+
+  var date = todayISO();
+
+  downloadFile(
+    'finance-backup-' + date + '.json',
+    JSON.stringify(backup, null, 2),
+    'application/json;charset=utf-8'
+  );
+
+  if (confirm('Файл копии сформирован. Нажмите «ОК», если он скачался и вы сохранили его.')) {
+    try {
+      localStorage.setItem('fin_kids_backup_day', date);
+    } catch (e) {
+      console.warn('Не удалось отметить резервное копирование:', e);
+    }
+  }
+
+  draw();
+}
+
+function isValidBackup(backup) {
+  if (!backup || backup.format !== 'fin-kids-backup' ||
+      backup.version !== 1 || !backup.data) {
+    return false;
+  }
+
+  var data = backup.data;
+
+  if (!Array.isArray(data.c) || !Array.isArray(data.ops) ||
+      !data.p || typeof data.p !== 'object') {
+    return false;
+  }
+
+  var planKeys = ['ali', 'aliD', 'ben', 'benD', 'k1', 'k2', 'k3', 'ex', 'exD', 'kW'];
+
+  for (var i = 0; i < planKeys.length; i++) {
+    if (!Number.isFinite(Number(data.p[planKeys[i]]))) return false;
+  }
+
+  if (typeof data.p.tim !== 'string') return false;
+
+  var validCredits = data.c.every(function (credit) {
+    return credit &&
+      typeof credit.id === 'string' &&
+      /^[a-zA-Z0-9_-]+$/.test(credit.id) &&
+      typeof credit.name === 'string' &&
+      Number.isFinite(Number(credit.rate)) &&
+      Number.isFinite(Number(credit.day)) &&
+      Number.isFinite(Number(credit.pay)) &&
+      Number.isFinite(Number(credit.debt));
+  });
+
+  if (!validCredits) return false;
+
+  var creditIds = data.c.map(function (credit) {
+    return credit.id;
+  });
+
+  return data.ops.every(function (op) {
+    return op &&
+      (typeof op.id === 'string' || typeof op.id === 'number') &&
+      typeof op.d === 'string' &&
+      typeof op.t === 'string' &&
+      Number.isFinite(Number(op.a)) &&
+      (!op.cid || creditIds.indexOf(op.cid) >= 0);
+  });
+}
+
+function restoreBackup(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+
+  var reader = new FileReader();
+
+  reader.onload = function () {
+    try {
+      var backup = JSON.parse(reader.result);
+
+      if (!isValidBackup(backup)) {
+        alert('Файл не похож на резервную копию этого приложения.');
+        input.value = '';
+        return;
+      }
+
+      if (!confirm('Заменить текущие данные данными из резервной копии?')) {
+        input.value = '';
+        return;
+      }
+
+      st = backup.data;
+
+      try {
+        localStorage.removeItem('fin_kids_backup_day');
+      } catch (e) {
+        console.warn('Не удалось сбросить дату резервного копирования:', e);
+      }
+
+      save();
+      alert('Данные восстановлены.');
+    } catch (e) {
+      console.error(e);
+      alert('Не удалось прочитать файл резервной копии.');
+    }
+
+    input.value = '';
+  };
+
+  reader.onerror = function () {
+    alert('Не удалось открыть выбранный файл.');
+    input.value = '';
+  };
+
+  reader.readAsText(file);
 }
 
 function dlICS() {
@@ -586,6 +723,7 @@ function dlCSV() {
 function resetAll() {
   if (!confirm('Сбросить все данные? Это действие нельзя отменить.')) return;
   localStorage.removeItem('fin_kids_ok');
+  localStorage.removeItem('fin_kids_backup_day');
   location.reload();
 }
 
@@ -640,6 +778,30 @@ function draw() {
   document.getElementById('remBanner').textContent = urgent.length
     ? '⏰ Скоро платёж: ' + urgent.join(', ')
     : '🔔 Все ближайшие платежи под контролем';
+
+  var backupDoneToday = false;
+
+  try {
+    backupDoneToday =
+      localStorage.getItem('fin_kids_backup_day') === todayISO();
+  } catch (e) {
+    console.warn('Не удалось проверить дату резервной копии:', e);
+  }
+
+  var backupBanner = document.getElementById('backupBanner');
+
+  if (backupDoneToday) {
+    backupBanner.className = '';
+    backupBanner.textContent = '';
+  } else {
+    backupBanner.className = 'banner b-wrn';
+    backupBanner.innerHTML =
+      '💾 Сегодня ещё не сохранена резервная копия. ' +
+      '<button type="button" onclick="downloadBackup()" ' +
+      'style="margin-top:8px;padding:8px 12px;border:0;border-radius:8px;' +
+      'background:#E65100;color:#fff;font-weight:600;">' +
+      'Скачать копию</button>';
+  }
 
   document.getElementById('totDebt').textContent = f(totalDebt);
 
@@ -700,27 +862,28 @@ function draw() {
     '-го • План ' + f(st.p.ex) + '</span><b>' + f(extraPaid) + '</b></div>';
 
   var progressColors = ['#FF3B30', '#FF9500', '#FFD60A', '#34C759', '#007AFF'];
-document.getElementById('crdDet').innerHTML = credits.map(function (credit, index) {
-  var percent = credit.debt > 0
-    ? Math.min(100, Math.round(credit.principalPaid / credit.debt * 100))
-    : 100;
 
-  var color = progressColors[Math.min(index, progressColors.length - 1)];
+  document.getElementById('crdDet').innerHTML = credits.map(function (credit, index) {
+    var percent = credit.debt > 0
+      ? Math.min(100, Math.round(credit.principalPaid / credit.debt * 100))
+      : 100;
 
-  return '<div class="card">' +
-    '<div class="row"><b>' + esc(credit.name) +
-    '</b><button type="button" onclick="openInfo(\'' + credit.id +
-    '\')">Детали</button></div>' +
-    '<span class="tag t-b">' +
-    (index === 0 ? 'САМЫЙ ДОРОГОЙ' : 'КОМФОРТНОСТЬ №' + (index + 1)) +
-    '</span>' +
-    '<div>Ставка ' + credit.rate + '% • Платёж ' + f(credit.pay) + '</div>' +
-    '<div>Остаток: ' + f(credit.remaining) + '</div>' +
-    '<div class="row" style="padding-bottom:4px;border:0;">' +
-    '<span>Погашено основного долга</span><b>' + percent + '%</b></div>' +
-    '<div class="pbar"><div class="pfill" style="width:' + percent +
-    '%;background:' + color + ';"></div></div>' +
-    '</div>';
+    var color = progressColors[Math.min(index, progressColors.length - 1)];
+
+    return '<div class="card">' +
+      '<div class="row"><b>' + esc(credit.name) +
+      '</b><button type="button" onclick="openInfo(\'' + credit.id +
+      '\')">Детали</button></div>' +
+      '<span class="tag t-b">' +
+      (index === 0 ? 'САМЫЙ ДОРОГОЙ' : 'КОМФОРТНОСТЬ №' + (index + 1)) +
+      '</span>' +
+      '<div>Ставка ' + credit.rate + '% • Платёж ' + f(credit.pay) + '</div>' +
+      '<div>Остаток: ' + f(credit.remaining) + '</div>' +
+      '<div class="row" style="padding-bottom:4px;border:0;">' +
+      '<span>Погашено основного долга</span><b>' + percent + '%</b></div>' +
+      '<div class="pbar"><div class="pfill" style="width:' + percent +
+      '%;background:' + color + ';"></div></div>' +
+      '</div>';
   }).join('');
 
   var monthNames = [
@@ -730,7 +893,7 @@ document.getElementById('crdDet').innerHTML = credits.map(function (credit, inde
 
   document.getElementById('opsList').innerHTML = monthOps.length
     ? monthOps.slice().sort(function (a, b) {
-        return a.d.localeCompare(b.d);
+        return b.d.localeCompare(a.d);
       }).map(function (op) {
         var parts = op.d.split('-');
         var dateText = parts.length === 3
@@ -772,6 +935,7 @@ document.getElementById('crdDet').innerHTML = credits.map(function (credit, inde
   }).join('');
 
   var expensesByCategory = {};
+
   monthOps.forEach(function (op) {
     if (op.t === 'Доход') return;
     var category = op.cat || 'Кредиты и досрочка';
@@ -817,14 +981,17 @@ document.getElementById('crdDet').innerHTML = credits.map(function (credit, inde
 
       var interest = loan.remaining * loan.rate / 100 / 12;
       var principal = Math.max(0, loan.pay - interest);
+
       if (principal > loan.remaining) {
         extraPool += principal - loan.remaining;
         principal = loan.remaining;
       }
+
       loan.remaining = Math.max(0, loan.remaining - principal);
     });
 
     simulation.sort(function (a, b) { return b.rate - a.rate; });
+
     simulation.forEach(function (loan) {
       if (extraPool <= 0 || loan.remaining <= 0) return;
       var payment = Math.min(loan.remaining, extraPool);
