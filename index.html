@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="ru">
-<script src="https://unpkg.com"></script>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Финансы</title>
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 <style>
   :root { --bg:#F2F2F7; --card:#FFF; --text:#1C1C1E; --muted:#8E8E93; --blue:#007AFF; --green:#34C759; --red:#FF3B30; --orange:#FF9500; --border:#E5E5EA; }
   * { box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
@@ -143,65 +143,166 @@
   <button type="button" class="btn" style="background:var(--blue);" onclick="saveRem()">Сохранить</button>
 </div></div>
 <script>
-var INIT_C = Array.of(
-  { id:'c1', name:'Сбербанк (29.06.2026)', rate:30.5, day:29, pay:718.36, debt:11123 },
-  { id:'c2', name:'СБЕРБАНК (11.11.2026)', rate:29.887, day:11, pay:3229.20, debt:50000 },
-  { id:'c3', name:'Сбербанк (05.03.2026)', rate:28.9, day:5, pay:7618.90, debt:235108 },
-  { id:'c4', name:'СБЕРБАНК (06.06.2026)', rate:25.4, day:6, pay:4881.74, debt:157858 },
-  { id:'c5', name:'ПСБ_ипотека (20.01.2020)', rate:10.4, day:20, pay:817.45, debt:85429 }
-);
-var INIT_P = { ali:20000, aliD:15, ben:15000, benD:3, k1:3000, k2:3000, k3:3000, ex:5000, exD:29, kW:0, tim:'10:00' };
-var st = JSON.parse(localStorage.getItem('fin_kids_ok')) || { c:INIT_C, p:INIT_P, ops:Array.of() };
+'use strict';
+
+var INIT_C = [
+  { id: 'c1', name: 'Сбербанк (29.06.2026)', rate: 30.5, day: 29, pay: 718.36, debt: 11123 },
+  { id: 'c2', name: 'СБЕРБАНК (11.11.2026)', rate: 29.887, day: 11, pay: 3229.20, debt: 50000 },
+  { id: 'c3', name: 'Сбербанк (05.03.2026)', rate: 28.9, day: 5, pay: 7618.90, debt: 235108 },
+  { id: 'c4', name: 'СБЕРБАНК (06.06.2026)', rate: 25.4, day: 6, pay: 4881.74, debt: 157858 },
+  { id: 'c5', name: 'ПСБ_ипотека (20.01.2020)', rate: 10.4, day: 20, pay: 817.45, debt: 85429 }
+];
+
+var INIT_P = {
+  ali: 20000, aliD: 15,
+  ben: 15000, benD: 3,
+  k1: 3000, k2: 3000, k3: 3000,
+  ex: 5000, exD: 29, kW: 0, tim: '10:00'
+};
+
+function loadState() {
+  try {
+    var saved = JSON.parse(localStorage.getItem('fin_kids_ok'));
+    if (saved && Array.isArray(saved.c) && saved.p && Array.isArray(saved.ops)) {
+      return saved;
+    }
+  } catch (e) {
+    console.warn('Не удалось прочитать сохранённые данные:', e);
+  }
+
+  return {
+    c: INIT_C.map(function (x) { return Object.assign({}, x); }),
+    p: Object.assign({}, INIT_P),
+    ops: []
+  };
+}
+
+var st = loadState();
 var editId = null;
 var qrScanner = null;
 
-function save() { localStorage.setItem('fin_kids_ok', JSON.stringify(st)); draw(); }
-function f(n) { return (Math.round(n * 100) / 100) + ' ₽'; }
+function save() {
+  try {
+    localStorage.setItem('fin_kids_ok', JSON.stringify(st));
+  } catch (e) {
+    alert('Не удалось сохранить данные. Возможно, хранилище браузера заполнено.');
+    console.error(e);
+  }
+  draw();
+}
 
-function goTab(id, t, b) {
-  document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
-  document.querySelectorAll('.nbtn').forEach(function(x){ x.classList.remove('active'); });
+function f(n) {
+  return (Number(n) || 0).toLocaleString('ru-RU', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  }) + ' ₽';
+}
+
+function esc(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+    return {
+      '&': '&amp;', '<': '&lt;', '>': '&gt;',
+      '"': '&quot;', "'": '&#39;'
+    }[ch];
+  });
+}
+
+function todayISO() {
+  var d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function goTab(id, title, button) {
+  document.querySelectorAll('.tab').forEach(function (el) {
+    el.classList.remove('active');
+  });
+  document.querySelectorAll('.nbtn').forEach(function (el) {
+    el.classList.remove('active');
+  });
+
   document.getElementById('tab-' + id).classList.add('active');
-  b.classList.add('active');
-  document.getElementById('pTitle').textContent = t;
+  button.classList.add('active');
+  document.getElementById('pTitle').textContent = title;
 }
 
 function stopScan() {
   var box = document.getElementById('qrBox');
-  if (qrScanner) {
-    qrScanner.stop().then(function(){
-      qrScanner.clear(); qrScanner = null; if (box) box.style.display = 'none';
-    }).catch(function(){ if (box) box.style.display = 'none'; });
-  } else if (box) { box.style.display = 'none'; }
+
+  if (!qrScanner) {
+    if (box) box.style.display = 'none';
+    return;
+  }
+
+  var scanner = qrScanner;
+  qrScanner = null;
+
+  scanner.stop().then(function () {
+    scanner.clear();
+    if (box) box.style.display = 'none';
+  }).catch(function () {
+    if (box) box.style.display = 'none';
+  });
 }
 
 function startScan() {
   var box = document.getElementById('qrBox');
-  if (box.style.display === 'block') { stopScan(); return; }
-  if (typeof Html5Qrcode === 'undefined') return alert('Нужен интернет при открытии страницы для загрузки сканера.');
+
+  if (qrScanner) {
+    stopScan();
+    return;
+  }
+
+  if (typeof Html5Qrcode === 'undefined') {
+    alert('Не загрузилась библиотека QR-сканера. Проверьте интернет и подключение скрипта.');
+    return;
+  }
+
   box.style.display = 'block';
   qrScanner = new Html5Qrcode('qrBox');
-  qrScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 220, height: 220 } },
-    function(txt) {
-      var tm = txt.match(/t=(\d{4})(\d{2})(\d{2})/);
-      var sm = txt.match(/s=([\d.]+)/);
-      if (tm || sm) {
-        document.getElementById('oType').value = 'Расход';
-        updForm();
-        if (tm) document.getElementById('oDate').value = tm.at(1) + '-' + tm.at(2) + '-' + tm.at(3);
-        if (sm) document.getElementById('oAmt').value = sm.at(1);
-        stopScan();
-        alert('Чек считан! Выберите категорию и нажмите Сохранить.');
+
+  qrScanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 220, height: 220 } },
+    function (text) {
+      var dateMatch = text.match(/t=(\d{4})(\d{2})(\d{2})/);
+      var sumMatch = text.match(/s=([\d.]+)/);
+
+      if (!dateMatch && !sumMatch) {
+        alert('QR-код считан, но дата и сумма не распознаны.');
+        return;
       }
+
+      document.getElementById('oType').value = 'Расход';
+      document.getElementById('oCat').value = 'Продукты';
+      updForm();
+
+      if (dateMatch) {
+        document.getElementById('oDate').value =
+          dateMatch[1] + '-' + dateMatch[2] + '-' + dateMatch[3];
+      }
+      if (sumMatch) {
+        document.getElementById('oAmt').value = sumMatch[1];
+      }
+
+      stopScan();
+      alert('Чек считан. Проверьте данные и нажмите «Сохранить».');
     }
-  ).catch(function() { box.style.display = 'none'; alert('Нет доступа к камере. Проверьте разрешение для Safari.'); });
+  ).catch(function (err) {
+    qrScanner = null;
+    box.style.display = 'none';
+    console.error(err);
+    alert('Не удалось открыть камеру. Проверьте разрешение камеры и HTTPS.');
+  });
 }
 
 function openOp() {
   editId = null;
-  var ttl = document.getElementById('opModTitle');
-  if (ttl) ttl.textContent = 'Новая операция';
-  document.getElementById('oDate').value = new Date().toISOString().slice(0,10);
+  document.getElementById('opModTitle').textContent = 'Новая операция';
+  document.getElementById('oType').value = 'Расход';
+  document.getElementById('oDate').value = todayISO();
+  document.getElementById('oCat').value = 'Продукты';
   document.getElementById('oAmt').value = '';
   document.getElementById('oPri').value = '';
   document.getElementById('oInt').value = '';
@@ -211,267 +312,548 @@ function openOp() {
 }
 
 function editOp(id) {
-  var op = st.ops.find(function(x){ return String(x.id) === String(id); });
+  var op = st.ops.find(function (item) {
+    return String(item.id) === String(id);
+  });
   if (!op) return;
+
   editId = String(id);
-  var ttl = document.getElementById('opModTitle');
-  if (ttl) ttl.textContent = 'Редактировать операцию';
-  var isC = (op.t === 'Кредитный платеж' || op.t === 'Досрочное погашение');
-  document.getElementById('oType').value = op.t;
+  document.getElementById('opModTitle').textContent = 'Редактировать операцию';
+  document.getElementById('oType').value =
+    op.t === 'Доход' || op.t === 'Расход' ? op.t : op.t;
   document.getElementById('oDate').value = op.d;
-  if (isC) {
+
+  if (op.cid) {
     document.getElementById('oCrd').value = op.cid;
-    document.getElementById('oPri').value = op.pr;
-    document.getElementById('oInt').value = op.inr;
+    document.getElementById('oPri').value = op.pr || 0;
+    document.getElementById('oInt').value = op.inr || 0;
   } else {
-    document.getElementById('oCat').value = op.cat;
-    document.getElementById('oAmt').value = op.a;
+    document.getElementById('oCat').value = op.cat || 'Продукты';
+    document.getElementById('oAmt').value = op.a || '';
     if (op.rec) document.getElementById('oKid').value = op.rec;
   }
+
   document.getElementById('oNot').value = op.n || '';
   updForm();
   document.getElementById('opMod').classList.add('open');
 }
 
-function closeOp() { stopScan(); editId = null; document.getElementById('opMod').classList.remove('open'); }
+function closeOp() {
+  stopScan();
+  editId = null;
+  document.getElementById('opMod').classList.remove('open');
+}
 
 function updForm() {
-  var t = document.getElementById('oType').value;
-  var isC = (t === 'Кредитный платеж' || t === 'Досрочное погашение');
-  document.getElementById('bCat').style.display = isC ? 'none' : 'block';
-  document.getElementById('bCrd').style.display = isC ? 'block' : 'none';
-  document.getElementById('bAmt').style.display = isC ? 'none' : 'block';
-  document.getElementById('bSpl').style.display = isC ? 'grid' : 'none';
-  var cat = document.getElementById('oCat').value;
-  document.getElementById('bKid').style.display = (!isC && cat === 'Дети: проезд и карманные') ? 'block' : 'none';
+  var type = document.getElementById('oType').value;
+  var isCredit = type === 'Кредитный платеж' || type === 'Досрочное погашение';
+
+  document.getElementById('bCat').style.display = isCredit ? 'none' : 'block';
+  document.getElementById('bCrd').style.display = isCredit ? 'block' : 'none';
+  document.getElementById('bAmt').style.display = isCredit ? 'none' : 'block';
+  document.getElementById('bSpl').style.display = isCredit ? 'grid' : 'none';
+
+  var isKid = document.getElementById('oCat').value === 'Дети: проезд и карманные';
+  document.getElementById('bKid').style.display =
+    !isCredit && isKid ? 'block' : 'none';
 }
 
 function saveOp() {
-  var t = document.getElementById('oType').value;
-  var d = document.getElementById('oDate').value;
-  var n = document.getElementById('oNot').value;
-  if (!d) return alert('Укажите дату');
-  var obj = null;
-  if (t === 'Кредитный платеж' || t === 'Досрочное погашение') {
-    var cid = document.getElementById('oCrd').value;
-    var co = st.c.find(function(x){ return x.id === cid; });
-    var pr = Number(document.getElementById('oPri').value || 0);
-    var inr = Number(document.getElementById('oInt').value || 0);
-    if (pr + inr <= 0) return alert('Введите сумму');
-    obj = { id:editId || String(Date.now()), d:d, t:t, cid:cid, cn:co.name, a:pr+inr, pr:pr, inr:inr, n:n };
-  } else {
-    var cat = document.getElementById('oCat').value;
-    var a = Number(document.getElementById('oAmt').value || 0);
-    var rec = (cat === 'Дети: проезд и карманные') ? document.getElementById('oKid').value : '';
-    var rt = (Array.of('Зарплата','Алименты','Детские пособия').indexOf(cat) >= 0) ? 'Доход' : 'Расход';
-    if (a <= 0) return alert('Введите сумму');
-    obj = { id:editId || String(Date.now()), d:d, t:rt, cat:cat, rec:rec, a:a, pr:0, inr:0, n:n };
+  var type = document.getElementById('oType').value;
+  var date = document.getElementById('oDate').value;
+  var note = document.getElementById('oNot').value.trim();
+
+  if (!date) {
+    alert('Укажите дату.');
+    return;
   }
-  if (editId) {
-    var idx = st.ops.findIndex(function(x){ return String(x.id) === String(editId); });
-    if (idx !== -1) st.ops.splice(idx, 1, obj);
-  } else { st.ops.push(obj); }
-  save(); closeOp();
+
+  var obj;
+
+  if (type === 'Кредитный платеж' || type === 'Досрочное погашение') {
+    var creditId = document.getElementById('oCrd').value;
+    var credit = st.c.find(function (item) { return item.id === creditId; });
+    var principal = Number(document.getElementById('oPri').value) || 0;
+    var interest = Number(document.getElementById('oInt').value) || 0;
+
+    if (!credit) {
+      alert('Выберите кредит.');
+      return;
+    }
+    if (principal + interest <= 0) {
+      alert('Введите сумму платежа.');
+      return;
+    }
+
+    obj = {
+      id: editId || String(Date.now()),
+      d: date, t: type, cid: creditId, cn: credit.name,
+      a: principal + interest, pr: principal, inr: interest, n: note
+    };
+  } else {
+    var category = document.getElementById('oCat').value;
+    var amount = Number(document.getElementById('oAmt').value) || 0;
+    var incomeCategories = ['Зарплата', 'Алименты', 'Детские пособия'];
+    var recipient = category === 'Дети: проезд и карманные'
+      ? document.getElementById('oKid').value : '';
+
+    if (amount <= 0) {
+      alert('Введите сумму.');
+      return;
+    }
+
+    obj = {
+      id: editId || String(Date.now()),
+      d: date,
+      t: incomeCategories.indexOf(category) >= 0 ? 'Доход' : 'Расход',
+      cat: category, rec: recipient, a: amount, pr: 0, inr: 0, n: note
+    };
+  }
+
+  var index = st.ops.findIndex(function (item) {
+    return String(item.id) === String(editId);
+  });
+
+  if (editId && index >= 0) {
+    st.ops[index] = obj;
+  } else {
+    st.ops.push(obj);
+  }
+
+  save();
+  closeOp();
 }
 
-function delOp(id) { if (confirm('Удалить?')) { st.ops = st.ops.filter(function(x){ return String(x.id) !== String(id); }); save(); } }
+function delOp(id) {
+  if (!confirm('Удалить операцию?')) return;
+  st.ops = st.ops.filter(function (item) {
+    return String(item.id) !== String(id);
+  });
+  save();
+}
 
 function openRem() {
   document.getElementById('rExD').value = st.p.exD;
   document.getElementById('rTim').value = st.p.tim;
   document.getElementById('rKidD').value = st.p.kW;
-  document.getElementById('rCrdDays').innerHTML = st.c.map(function(x){ return '<label>' + x.name + '</label><input type="number" id="d_' + x.id + '" value="' + x.day + '">'; }).join('');
+
+  document.getElementById('rCrdDays').innerHTML = st.c.map(function (credit) {
+    return '<label>' + esc(credit.name) + '</label>' +
+      '<input type="number" min="1" max="31" id="d_' +
+      esc(credit.id) + '" value="' + Number(credit.day) + '">';
+  }).join('');
+
   document.getElementById('remMod').classList.add('open');
 }
-function closeRem() { document.getElementById('remMod').classList.remove('open'); }
+
+function closeRem() {
+  document.getElementById('remMod').classList.remove('open');
+}
+
 function saveRem() {
-  st.p.exD = Number(document.getElementById('rExD').value) || 29;
+  st.p.exD = Math.min(31, Math.max(1, Number(document.getElementById('rExD').value) || 29));
   st.p.tim = document.getElementById('rTim').value || '10:00';
-  st.p.kW = Number(document.getElementById('rKidD').value);
-  st.c.forEach(function(x){ var v = Number(document.getElementById('d_' + x.id).value); if (v >= 1 && v <= 31) x.day = v; });
-  save(); closeRem();
+  st.p.kW = Number(document.getElementById('rKidD').value) || 0;
+
+  st.c.forEach(function (credit) {
+    var input = document.getElementById('d_' + credit.id);
+    var day = input ? Number(input.value) : credit.day;
+    if (day >= 1 && day <= 31) credit.day = day;
+  });
+
+  save();
+  closeRem();
 }
 
 function editPlans() {
-  var s1 = prompt('План Ярослав (₽):', st.p.k1); if (s1 === null) return;
-  var s2 = prompt('План Кирилл (₽):', st.p.k2); if (s2 === null) return;
-  var s3 = prompt('План Ростислав (₽):', st.p.k3); if (s3 === null) return;
-  var a = prompt('Алименты план:', st.p.ali); if (a === null) return;
-  var b = prompt('Пособия план:', st.p.ben); if (b === null) return;
-  st.p.k1 = Number(s1) || 0; st.p.k2 = Number(s2) || 0; st.p.k3 = Number(s3) || 0;
-  st.p.ali = Number(a) || 0; st.p.ben = Number(b) || 0; save();
+  var fields = [
+    ['План Ярослав (₽):', 'k1'],
+    ['План Кирилл (₽):', 'k2'],
+    ['План Ростислав (₽):', 'k3'],
+    ['План алиментов (₽):', 'ali'],
+    ['План пособий (₽):', 'ben'],
+    ['План досрочного погашения (₽):', 'ex']
+  ];
+
+  for (var i = 0; i < fields.length; i++) {
+    var key = fields[i][1];
+    var value = prompt(fields[i][0], st.p[key]);
+    if (value === null) return;
+    st.p[key] = Math.max(0, Number(value) || 0);
+  }
+  save();
 }
 
-function openInfo(cid) {
-  var c = st.c.find(function(x){ return x.id === cid; });
-  if (!c) return;
-  var activeList = st.c.map(function(x){
-    var pp = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.pr; }, 0);
-    return { id:x.id, rate:x.rate, rem:Math.max(0, x.debt - pp) };
-  }).filter(function(x){ return x.rem > 0; }).sort(function(a,b){ return b.rate - a.rate; });
-  var isTop = (activeList.length > 0 && activeList.at(0).id === cid);
-  var paidP = st.ops.filter(function(o){ return o.cid === cid; }).reduce(function(s,o){ return s + o.pr; }, 0);
-  var paidI = st.ops.filter(function(o){ return o.cid === cid; }).reduce(function(s,o){ return s + o.inr; }, 0);
-  var rem = Math.max(0, c.debt - paidP);
-  document.getElementById('infTitle').textContent = c.name;
-  var html = '<div style="background:#F2F2F7;padding:12px;border-radius:12px;font-size:13px;line-height:1.6;margin-bottom:12px;">';
-  html += '<div><b>Ставка:</b> ' + c.rate + '% • <b>Платеж:</b> ' + f(c.pay) + ' (' + c.day + '-го)</div>';
-  html += '<div><b>Остаток долга:</b> <span style="color:#FF3B30;font-weight:700;">' + f(rem) + '</span></div>';
-  html += '<div><b>Погашено тела / %:</b> ' + f(paidP) + ' / ' + f(paidI) + '</div></div>';
-  html += '<div style="font-size:12px;font-weight:700;color:#8E8E93;margin-bottom:6px;">ПРОГНОЗНЫЙ ГРАФИК ПЛАТЕЖЕЙ</div>';
-  html += '<div style="max-height:220px;overflow-y:auto;border:1px solid #E5E5EA;border-radius:10px;padding:0 10px;">';
-  var simDebt = rem, mRate = (c.rate / 100) / 12, months = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'), now = new Date(), step = 0;
-  if (simDebt <= 0) {
-    html += '<div style="padding:12px 0;color:#1E8E3E;font-weight:600;">Кредит полностью закрыт!</div>';
+function openInfo(creditId) {
+  var credit = st.c.find(function (item) { return item.id === creditId; });
+  if (!credit) return;
+
+  var history = st.ops.filter(function (op) {
+    return op.cid === creditId;
+  });
+
+  var paidPrincipal = history.reduce(function (sum, op) {
+    return sum + (Number(op.pr) || 0);
+  }, 0);
+  var paidInterest = history.reduce(function (sum, op) {
+    return sum + (Number(op.inr) || 0);
+  }, 0);
+  var remaining = Math.max(0, credit.debt - paidPrincipal);
+
+  document.getElementById('infTitle').textContent = credit.name;
+
+  var html = '<div class="card">' +
+    '<div><b>Ставка:</b> ' + credit.rate + '%</div>' +
+    '<div><b>Плановый платёж:</b> ' + f(credit.pay) + '</div>' +
+    '<div><b>Остаток:</b> ' + f(remaining) + '</div>' +
+    '<div><b>Погашено тела / процентов:</b> ' +
+    f(paidPrincipal) + ' / ' + f(paidInterest) + '</div></div>';
+
+  html += '<div class="ctitle">Фактические платежи</div>';
+
+  if (!history.length) {
+    html += '<div>Платежей пока нет.</div>';
   } else {
-    while (simDebt > 0.5 && step < 120) {
-      step++;
-      var dObj = new Date(now.getFullYear(), now.getMonth() + step, 1);
-      var mLabel = months.at(dObj.getMonth()) + ' ' + dObj.getFullYear();
-      var intr = simDebt * mRate, extra = isTop ? st.p.ex : 0, totalPay = c.pay + extra, bodyPay = totalPay - intr;
-      if (bodyPay > simDebt) { bodyPay = simDebt; totalPay = bodyPay + intr; }
-      simDebt = Math.max(0, simDebt - bodyPay);
-html += '' + mLabel + ' (' + c.day + '-го)
-Долг: ' + f(bodyPay) + ' • %: ' + f(intr) + '' + f(totalPay) + '
-Ост: ' + f(simDebt) + '';
+    html += history.slice().sort(function (a, b) {
+      return a.d.localeCompare(b.d);
+    }).map(function (op) {
+      return '<div class="row"><span>' + esc(op.d) + ' — ' +
+        esc(op.t) + '</span><b>' + f(op.a) + '</b></div>';
+    }).join('');
+  }
+
+  document.getElementById('infBody').innerHTML = html;
+  document.getElementById('infoMod').classList.add('open');
 }
+
+function closeInfo() {
+  document.getElementById('infoMod').classList.remove('open');
 }
-html += '';
-var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
-var hist = st.ops.filter(function(o){ return o.cid === cid; }).slice().sort(function(a, b){ return a.d.localeCompare(b.d); });
-if (hist.length > 0) {
-html += 'ФАКТИЧЕСКИЕ ПЛАТЕЖИ';
-html += hist.map(function(h){
-var dp = h.d.split('-');
-var rd = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : h.d;
-return '' + rd + ' (' + h.t + ')' + f(h.a) + '';
-}).join('');
+
+function downloadFile(name, content, type) {
+  var blob = new Blob([content], { type: type });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
-document.getElementById('infBody').innerHTML = html;
-document.getElementById('infoMod').classList.add('open');
-}
-function closeInfo() { document.getElementById('infoMod').classList.remove('open'); }
+
 function dlICS() {
-var nl = String.fromCharCode(10), now = new Date(), y = now.getFullYear(), m = String(now.getMonth()+1).padStart(2,'0');
-var ts = st.p.tim.replace(':','') + '00', txt = 'BEGIN:VCALENDAR' + nl + 'VERSION:2.0' + nl;
-st.c.forEach(function(x){
-txt += 'BEGIN:VEVENT' + nl + 'DTSTART:' + y + m + String(x.day).padStart(2,'0') + 'T' + ts + nl + 'RRULE:FREQ=MONTHLY;BYMONTHDAY=' + x.day + nl + 'SUMMARY:Кредит ' + x.name + nl + 'END:VEVENT' + nl;
-});
-txt += 'END:VCALENDAR';
-var el = document.createElement('a');
-el.href = URL.createObjectURL(new Blob(Array.of(txt), {type:'text/calendar'}));
-el.download = 'reminders.ics'; el.click();
+  var now = new Date();
+  var year = now.getFullYear();
+  var month = String(now.getMonth() + 1).padStart(2, '0');
+  var time = (st.p.tim || '10:00').replace(':', '') + '00';
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0'];
+
+  st.c.forEach(function (credit) {
+    var day = String(credit.day).padStart(2, '0');
+    lines.push(
+      'BEGIN:VEVENT',
+      'DTSTART:' + year + month + day + 'T' + time,
+      'RRULE:FREQ=MONTHLY;BYMONTHDAY=' + credit.day,
+      'SUMMARY:' + credit.name,
+      'END:VEVENT'
+    );
+  });
+
+  lines.push('END:VCALENDAR');
+  downloadFile('reminders.ics', lines.join('\r\n'), 'text/calendar;charset=utf-8');
 }
+
 function dlCSV() {
-var nl = String.fromCharCode(10), txt = 'Дата;Тип;Категория;Получатель;Сумма;Долг;Проценты;Комментарий' + nl;
-st.ops.forEach(function(x){ txt += Array.of(x.d, x.t, x.cat||x.cn, x.rec||'', x.a, x.pr, x.inr, x.n||'').join(';') + nl; });
-var el = document.createElement('a');
-el.href = URL.createObjectURL(new Blob(Array.of(txt), {type:'text/csv;charset=utf-8'}));
-el.download = 'finance.csv'; el.click();
+  var rows = [
+    ['Дата', 'Тип', 'Категория', 'Получатель', 'Сумма', 'Основной долг', 'Проценты', 'Комментарий']
+  ];
+
+  st.ops.forEach(function (op) {
+    rows.push([
+      op.d, op.t, op.cat || op.cn || '', op.rec || '',
+      op.a, op.pr || 0, op.inr || 0, op.n || ''
+    ]);
+  });
+
+  var csv = rows.map(function (row) {
+    return row.map(function (cell) {
+      return '"' + String(cell == null ? '' : cell).replace(/"/g, '""') + '"';
+    }).join(';');
+  }).join('\r\n');
+
+  downloadFile('finance.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
 }
-function resetAll() { if (confirm('Сбросить все данные?')) { localStorage.removeItem('fin_kids_ok'); location.reload(); } }
+
+function resetAll() {
+  if (!confirm('Сбросить все данные? Это действие нельзя отменить.')) return;
+  localStorage.removeItem('fin_kids_ok');
+  location.reload();
+}
+
 function draw() {
-var now = new Date(), cm = now.toISOString().slice(0,7), td = now.getDate();
-var mOps = st.ops.filter(function(x){ return x.d.startsWith(cm); });
-var tot = 0, urg = Array.of();
-var list = st.c.map(function(x){
-var pp = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.pr; }, 0);
-var pi = st.ops.filter(function(o){ return o.cid === x.id; }).reduce(function(s,o){ return s + o.inr; }, 0);
-var rem = Math.max(0, x.debt - pp); tot += rem;
-var pm = mOps.filter(function(o){ return o.cid === x.id && o.t === 'Кредитный платеж'; }).reduce(function(s,o){ return s + o.a; }, 0);
-if (rem > 0 && pm < x.pay - 1 && x.day - td >= 0 && x.day - td <= 3) urg.push(x.name + ' (' + x.day + '-го: ' + f(x.pay) + ')');
-return { id:x.id, name:x.name, rate:x.rate, day:x.day, pay:x.pay, debt:x.debt, pp:pp, pi:pi, rem:rem, pm:pm };
-}).sort(function(a,b){ return b.rate - a.rate; });
-document.getElementById('remBanner').innerHTML = urg.length ? '⏰ Скоро платеж: ' + urg.join(', ') + '' : '🔔 Все ближайшие платежи под контролем';
-document.getElementById('totDebt').textContent = f(tot);
-var inc = mOps.filter(function(x){ return x.t === 'Доход'; }).reduce(function(s,x){ return s + x.a; }, 0);
-var out = mOps.filter(function(x){ return x.t !== 'Доход'; }).reduce(function(s,x){ return s + x.a; }, 0);
-document.getElementById('mBal').textContent = f(inc - out);
-var bf = mOps.filter(function(x){ return x.cat === 'Детские пособия'; }).reduce(function(s,x){ return s + x.a; }, 0);
-var af = mOps.filter(function(x){ return x.cat === 'Алименты'; }).reduce(function(s,x){ return s + x.a; }, 0);
-document.getElementById('incList').innerHTML = 'Детские пособия
-' + st.p.benD + '-го • План ' + f(st.p.ben) + '' + f(bf) + 'Алименты
-' + st.p.aliD + '-го • План ' + f(st.p.ali) + '' + f(af) + '';
-var ks = Array.of({n:'Ярослав',p:st.p.k1},{n:'Кирилл',p:st.p.k2},{n:'Ростислав',p:st.p.k3});
-document.getElementById('kidList').innerHTML = ks.map(function(k){
-var kf = mOps.filter(function(x){ return x.rec === k.n; }).reduce(function(s,x){ return s + x.a; }, 0);
-var wk = Math.min(4, Math.floor(kf / (k.p / 4 || 1)));
-return '' + k.n + '
-План ' + f(k.p) + ' • ' + wk + ' из 4 нед.' + f(kf) + '';
-}).join('');
-var exF = mOps.filter(function(x){ return x.t === 'Досрочное погашение'; }).reduce(function(s,x){ return s + x.a; }, 0);
-document.getElementById('crdList').innerHTML = list.map(function(x){
-return '' + x.name + '
-' + x.day + '-го • План ' + f(x.pay) + '' + f(x.pm) + '';
-}).join('') + 'Досрочное погашение
-' + st.p.exD + '-го • План ' + f(st.p.ex) + '' + f(exF) + '';
-document.getElementById('crdDet').innerHTML = list.map(function(x, idx){
-var pct = Math.min(100, Math.round((x.pp / x.debt) * 100));
-var btnI = 'i';
-return '' + x.name + '' + btnI + '' + (idx===0?'ЦЕЛЬ №1':'#'+(idx+1)) + 'Ставка ' + x.rate + '% • Платеж ' + f(x.pay) + 'Остаток: ' + f(x.rem) + ' | Проценты: ' + f(x.pi) + '';
-}).join('');
-var mGen = Array.of('января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря');
-document.getElementById('opsList').innerHTML = mOps.slice().sort(function(a, b){ return a.d.localeCompare(b.d); }).map(function(x){
-var dp = x.d.split('-');
-var ruDate = dp.length === 3 ? (dp.at(2) + ' ' + mGen.at(Number(dp.at(1)) - 1) + ' ' + dp.at(0)) : x.d;
-var btns = 'Изм. X';
-return '' + (x.cat || x.t) + '
-' + ruDate + ' • ' + (x.rec||x.cn||'') + ' ' + (x.n||'') + '' + f(x.a) + '' + btns + '';
-}).join('') || 'Нет операций';
-var cats = Array.of('Зарплата','Алименты','Детские пособия','Продукты','Дети: проезд и карманные','Питание собаки','ЖКХ и связь','Транспорт','Здоровье и аптеки','Одежда и быт','Прочие расходы');
-document.getElementById('catSum').innerHTML = cats.map(function(c){
-var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
-return '' + c + '' + f(s) + '';
-}).join('');
-document.getElementById('oCrd').innerHTML = st.c.map(function(x){ return '' + x.name + ''; }).join('');
-var colors = Array.of('#007AFF','#34C759','#FF9500','#FF3B30','#AF52DE','#5856D6','#FF2D55','#00C7BE','#A2845E','#8E8E93');
-var expItems = Array.of();
-cats.forEach(function(c) {
-if (c === 'Зарплата' || c === 'Алименты' || c === 'Детские пособия') return;
-var s = mOps.filter(function(x){ return x.cat === c; }).reduce(function(a,b){ return a + b.a; }, 0);
-if (s > 0) expItems.push({ name:c, val:s });
-});
-var crdMonth = mOps.filter(function(x){ return x.t === 'Кредитный платеж' || x.t === 'Досрочное погашение'; }).reduce(function(a,b){ return a + b.a; }, 0);
-if (crdMonth > 0) expItems.push({ name:'Кредиты и досрочка', val:crdMonth });
-expItems.sort(function(a,b){ return b.val - a.val; });
-var totExp = expItems.reduce(function(a,b){ return a + b.val; }, 0);
-document.getElementById('expChart').innerHTML = totExp === 0 ? 'Добавьте первый расход, чтобы увидеть диаграмму.' : expItems.map(function(item, i) {
-var pct = Math.round((item.val / totExp) * 100), col = colors.at(i % colors.length);
-return '' + item.name + '' + f(item.val) + ' (' + pct + '%)';
-}).join('');
-var simList = list.map(function(x){ return { rate:x.rate, pay:x.pay, rem:x.rem }; });
-var mNames = Array.of('Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек');
-var pts = Array.of({ label:'Сейчас', val:tot }), stepM = 0;
-while (stepM < 42) {
-stepM++;
-var activeSim = simList.filter(function(s){ return s.rem > 0.1; }).sort(function(a,b){ return b.rate - a.rate; });
-if (activeSim.length === 0) break;
-var extraPool = st.p.ex;
-simList.forEach(function(s) {
-if (s.rem <= 0) { extraPool += s.pay; return; }
-var intr = s.rem * (s.rate / 100 / 12), body = Math.max(0, s.pay - intr);
-if (body > s.rem) { extraPool += (body - s.rem); body = s.rem; }
-s.rem = Math.max(0, s.rem - body);
-});
-activeSim.forEach(function(s) {
-if (extraPool <= 0 || s.rem <= 0) return;
-var take = Math.min(s.rem, extraPool);
-s.rem = Math.max(0, s.rem - take); extraPool -= take;
-});
-var remSum = simList.reduce(function(a,b){ return a + b.rem; }, 0);
-if (stepM % 6 === 0 || remSum <= 0.5) {
-var fd = new Date(now.getFullYear(), now.getMonth() + stepM, 1);
-pts.push({ label:mNames.at(fd.getMonth()) + ' ' + String(fd.getFullYear()).slice(2), val:Math.round(remSum) });
-if (remSum <= 0.5) break;
+  var now = new Date();
+  var monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var today = now.getDate();
+
+  var monthOps = st.ops.filter(function (op) {
+    return op.d && op.d.slice(0, 7) === monthKey;
+  });
+
+  var totalDebt = 0;
+  var urgent = [];
+
+  var credits = st.c.map(function (credit) {
+    var creditOps = st.ops.filter(function (op) {
+      return op.cid === credit.id;
+    });
+
+    var principalPaid = creditOps.reduce(function (sum, op) {
+      return sum + (Number(op.pr) || 0);
+    }, 0);
+
+    var remaining = Math.max(0, credit.debt - principalPaid);
+    totalDebt += remaining;
+
+    var paidThisMonth = monthOps.filter(function (op) {
+      return op.cid === credit.id && op.t === 'Кредитный платеж';
+    }).reduce(function (sum, op) {
+      return sum + (Number(op.a) || 0);
+    }, 0);
+
+    var daysUntil = credit.day - today;
+    if (remaining > 0 && paidThisMonth < credit.pay - 1 &&
+        daysUntil >= 0 && daysUntil <= 3) {
+      urgent.push(credit.name + ' (' + credit.day + '-го: ' + f(credit.pay) + ')');
+    }
+
+    return {
+      id: credit.id, name: credit.name, rate: credit.rate,
+      day: credit.day, pay: credit.pay, debt: credit.debt,
+      principalPaid: principalPaid, remaining: remaining,
+      paidThisMonth: paidThisMonth
+    };
+  }).sort(function (a, b) {
+    return b.rate - a.rate;
+  });
+
+  document.getElementById('remBanner').className =
+    'banner ' + (urgent.length ? 'b-wrn' : 'b-inf');
+  document.getElementById('remBanner').textContent = urgent.length
+    ? '⏰ Скоро платёж: ' + urgent.join(', ')
+    : '🔔 Все ближайшие платежи под контролем';
+
+  document.getElementById('totDebt').textContent = f(totalDebt);
+
+  var income = monthOps.filter(function (op) {
+    return op.t === 'Доход';
+  }).reduce(function (sum, op) { return sum + op.a; }, 0);
+
+  var expense = monthOps.filter(function (op) {
+    return op.t !== 'Доход';
+  }).reduce(function (sum, op) { return sum + op.a; }, 0);
+
+  document.getElementById('mBal').textContent = f(income - expense);
+
+  var benefits = monthOps.filter(function (op) {
+    return op.cat === 'Детские пособия';
+  }).reduce(function (sum, op) { return sum + op.a; }, 0);
+
+  var alimony = monthOps.filter(function (op) {
+    return op.cat === 'Алименты';
+  }).reduce(function (sum, op) { return sum + op.a; }, 0);
+
+  document.getElementById('incList').innerHTML =
+    '<div class="row"><span>Детские пособия<br>' + st.p.benD +
+    '-го • План ' + f(st.p.ben) + '</span><b>' + f(benefits) + '</b></div>' +
+    '<div class="row"><span>Алименты<br>' + st.p.aliD +
+    '-го • План ' + f(st.p.ali) + '</span><b>' + f(alimony) + '</b></div>';
+
+  var children = [
+    { name: 'Ярослав', plan: st.p.k1 },
+    { name: 'Кирилл', plan: st.p.k2 },
+    { name: 'Ростислав', plan: st.p.k3 }
+  ];
+
+  document.getElementById('kidList').innerHTML = children.map(function (child) {
+    var spent = monthOps.filter(function (op) {
+      return op.rec === child.name;
+    }).reduce(function (sum, op) { return sum + op.a; }, 0);
+
+    var weeks = child.plan > 0
+      ? Math.min(4, Math.floor(spent / (child.plan / 4)))
+      : 0;
+
+    return '<div class="row"><span>' + child.name + '<br>План ' +
+      f(child.plan) + ' • ' + weeks + ' из 4 нед.</span><b>' +
+      f(spent) + '</b></div>';
+  }).join('');
+
+  var extraPaid = monthOps.filter(function (op) {
+    return op.t === 'Досрочное погашение';
+  }).reduce(function (sum, op) { return sum + op.a; }, 0);
+
+  document.getElementById('crdList').innerHTML = credits.map(function (credit) {
+    return '<div class="row"><span>' + esc(credit.name) + '<br>' +
+      credit.day + '-го • План ' + f(credit.pay) + '</span><b>' +
+      f(credit.paidThisMonth) + '</b></div>';
+  }).join('') +
+    '<div class="row"><span>Досрочное погашение<br>' + st.p.exD +
+    '-го • План ' + f(st.p.ex) + '</span><b>' + f(extraPaid) + '</b></div>';
+
+  var progressColors = ['#FF3B30', '#FF9500', '#FFD60A', '#34C759', '#007AFF'];
+document.getElementById('crdDet').innerHTML = credits.map(function (credit, index) {
+  var percent = credit.debt > 0
+    ? Math.min(100, Math.round(credit.principalPaid / credit.debt * 100))
+    : 100;
+
+  var color = progressColors[Math.min(index, progressColors.length - 1)];
+
+  return '<div class="card">' +
+    '<div class="row"><b>' + esc(credit.name) +
+    '</b><button type="button" onclick="openInfo(\'' + credit.id +
+    '\')">Детали</button></div>' +
+    '<span class="tag t-b">' +
+    (index === 0 ? 'САМЫЙ ДОРОГОЙ' : 'КОМФОРТНОСТЬ №' + (index + 1)) +
+    '</span>' +
+    '<div>Ставка ' + credit.rate + '% • Платёж ' + f(credit.pay) + '</div>' +
+    '<div>Остаток: ' + f(credit.remaining) + '</div>' +
+    '<div class="row" style="padding-bottom:4px;border:0;">' +
+    '<span>Погашено основного долга</span><b>' + percent + '%</b></div>' +
+    '<div class="pbar"><div class="pfill" style="width:' + percent +
+    '%;background:' + color + ';"></div></div>' +
+    '</div>';
+  }).join('');
+
+  var monthNames = [
+    'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+    'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+  ];
+
+  document.getElementById('opsList').innerHTML = monthOps.length
+    ? monthOps.slice().sort(function (a, b) {
+        return b.d.localeCompare(a.d);
+      }).map(function (op) {
+        var parts = op.d.split('-');
+        var dateText = parts.length === 3
+          ? Number(parts[2]) + ' ' + monthNames[Number(parts[1]) - 1] + ' ' + parts[0]
+          : op.d;
+
+        return '<div class="row"><span><b>' +
+          esc(op.cat || op.t) + '</b><br>' + dateText +
+          (op.rec ? ' • ' + esc(op.rec) : '') +
+          (op.cn ? ' • ' + esc(op.cn) : '') +
+          (op.n ? '<br>' + esc(op.n) : '') +
+          '<br><button type="button" onclick="editOp(\'' + op.id +
+          '\')">Изм.</button> <button type="button" onclick="delOp(\'' +
+          op.id + '\')">Удалить</button></span><b>' + f(op.a) +
+          '</b></div>';
+      }).join('')
+    : 'Нет операций за этот месяц';
+
+  var categories = [
+    'Зарплата', 'Алименты', 'Детские пособия', 'Продукты',
+    'Дети: проезд и карманные', 'Питание собаки', 'ЖКХ и связь',
+    'Транспорт', 'Здоровье и аптеки', 'Одежда и быт', 'Прочие расходы'
+  ];
+
+  document.getElementById('catSum').innerHTML = categories.map(function (category) {
+    var sum = monthOps.filter(function (op) {
+      return op.cat === category;
+    }).reduce(function (total, op) {
+      return total + op.a;
+    }, 0);
+
+    return '<div class="row"><span>' + esc(category) +
+      '</span><b>' + f(sum) + '</b></div>';
+  }).join('');
+
+  document.getElementById('oCrd').innerHTML = st.c.map(function (credit) {
+    return '<option value="' + esc(credit.id) + '">' +
+      esc(credit.name) + '</option>';
+  }).join('');
+
+  var expensesByCategory = {};
+  monthOps.forEach(function (op) {
+    if (op.t === 'Доход') return;
+    var category = op.cat || 'Кредиты и досрочка';
+    expensesByCategory[category] = (expensesByCategory[category] || 0) + op.a;
+  });
+
+  var expenseRows = Object.keys(expensesByCategory).map(function (name) {
+    return { name: name, amount: expensesByCategory[name] };
+  }).sort(function (a, b) {
+    return b.amount - a.amount;
+  });
+
+  var expenseTotal = expenseRows.reduce(function (sum, item) {
+    return sum + item.amount;
+  }, 0);
+
+  document.getElementById('expChart').innerHTML = expenseTotal
+    ? expenseRows.map(function (item) {
+        var percent = Math.round(item.amount / expenseTotal * 100);
+        return '<div class="row"><span>' + esc(item.name) +
+          ' (' + percent + '%)</span><b>' + f(item.amount) + '</b></div>';
+      }).join('')
+    : 'Добавьте первый расход, чтобы увидеть диаграмму.';
+
+  var simulation = credits.map(function (credit) {
+    return {
+      rate: credit.rate,
+      pay: credit.pay,
+      remaining: credit.remaining
+    };
+  });
+
+  var chart = [{ label: 'Сейчас', amount: totalDebt }];
+
+  for (var month = 1; month <= 60; month++) {
+    var extraPool = st.p.ex;
+
+    simulation.forEach(function (loan) {
+      if (loan.remaining <= 0) {
+        extraPool += loan.pay;
+        return;
+      }
+
+      var interest = loan.remaining * loan.rate / 100 / 12;
+      var principal = Math.max(0, loan.pay - interest);
+      if (principal > loan.remaining) {
+        extraPool += principal - loan.remaining;
+        principal = loan.remaining;
+      }
+      loan.remaining = Math.max(0, loan.remaining - principal);
+    });
+
+    simulation.sort(function (a, b) { return b.rate - a.rate; });
+    simulation.forEach(function (loan) {
+      if (extraPool <= 0 || loan.remaining <= 0) return;
+      var payment = Math.min(loan.remaining, extraPool);
+      loan.remaining -= payment;
+      extraPool -= payment;
+    });
+
+    var remainingTotal = simulation.reduce(function (sum, loan) {
+      return sum + loan.remaining;
+    }, 0);
+
+    if (month % 6 === 0 || remainingTotal <= 0.5) {
+      var chartDate = new Date(now.getFullYear(), now.getMonth() + month, 1);
+      chart.push({
+        label: String(chartDate.getMonth() + 1).padStart(2, '0') +
+          '/' + String(chartDate.getFullYear()).slice(-2),
+        amount: Math.round(remainingTotal)
+      });
+    }
+
+    if (remainingTotal <= 0.5) break;
+  }
+
+  document.getElementById('debtChart').innerHTML = chart.map(function (point) {
+    return '<div class="row"><span>' + esc(point.label) +
+      '</span><b>' + f(point.amount) + '</b></div>';
+  }).join('');
 }
-}
-var maxD = Math.max(1, tot);
-document.getElementById('debtChart').innerHTML = '' +
-pts.map(function(pt) {
-var h = Math.max(6, Math.round((pt.val / maxD) * 95)), kVal = pt.val >= 1000 ? Math.round(pt.val / 1000) + 'к' : pt.val + '₽', barCol = pt.val === 0 ? '#34C759' : '#007AFF';
-return '' + kVal + '' + pt.label + '';
-}).join('') + '';
-}
+
 draw();
 </script>
 </body>
