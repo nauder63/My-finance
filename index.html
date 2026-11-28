@@ -730,7 +730,7 @@ document.getElementById('crdDet').innerHTML = credits.map(function (credit, inde
 
   document.getElementById('opsList').innerHTML = monthOps.length
     ? monthOps.slice().sort(function (a, b) {
-        return b.d.localeCompare(a.d);
+        return a.d.localeCompare(b.d);
       }).map(function (op) {
         var parts = op.d.split('-');
         var dateText = parts.length === 3
